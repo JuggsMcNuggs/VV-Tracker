@@ -1,0 +1,3177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vanilla Unicorn Tracker</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,900;1,9..40,400&display=swap');
+
+    :root {
+      --bg: #080808;
+      --panel: #0f0f0f;
+      --panel2: #141414;
+      --surface: #1a1a1a;
+      --line: #222222;
+      --line2: #2a2a2a;
+      --text: #f0ece0;
+      --muted: #806a50;
+      --accent: #c9a84c;
+      --accent-dim: rgba(201,168,76,.12);
+      --accent-mid: rgba(201,168,76,.30);
+      --gold-hi: #e8c96e;
+      --gold-hi-dim: rgba(232,201,110,.10);
+      --good: #6aaa6a;
+      --good-dim: rgba(106,170,106,.12);
+      --good-border: rgba(106,170,106,.45);
+      --bad: #cc5a55;
+      --bad-dim: rgba(204,90,85,.10);
+      --bad-border: rgba(204,90,85,.40);
+      --warn: #c9a84c;
+      --warn-dim: rgba(201,168,76,.12);
+      --warn-border: rgba(201,168,76,.45);
+      --loa: #9988bb;
+      --loa-dim: rgba(153,136,187,.12);
+      --loa-border: rgba(153,136,187,.45);
+      --r: 12px;
+      --r2: 16px;
+      --shadow: 0 8px 32px rgba(0,0,0,.6);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky; top: 0; z-index: 20;
+      backdrop-filter: blur(16px);
+      background: rgba(8,8,8,.9);
+      border-bottom: 1px solid var(--line);
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 14px 20px; }
+    .hdr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      width: 28px; height: 28px; border-radius: 4px;
+      object-fit: cover;
+      filter: drop-shadow(0 0 6px rgba(201,168,76,.4));
+    }
+    .brand-name { font-weight: 900; font-size: 15px; letter-spacing: .3px; color: var(--accent); }
+    .brand-sub { font-size: 11px; color: var(--muted); margin-left: 2px; }
+
+    .hdr-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+    /* ── BUTTONS & INPUTS ── */
+    input, select, button, textarea {
+      font: inherit; color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--r);
+      padding: 8px 12px;
+      outline: none;
+      font-size: 13px;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: rgba(128,106,80,.6); }
+    button { cursor: pointer; user-select: none; white-space: nowrap; }
+    button:hover { border-color: var(--accent); }
+
+    .btn-accent {
+      background: var(--accent-dim);
+      border-color: var(--accent-mid);
+      color: var(--gold-hi);
+      font-weight: 700;
+    }
+    .btn-ghost { background: rgba(26,26,26,.6); }
+    .btn-danger { background: var(--bad-dim); border-color: var(--bad-border); color: var(--bad); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+    .btn-icon {
+      width: 30px; height: 30px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(26,26,26,.4); border-radius: 8px;
+    }
+    .btn-icon svg { width: 14px; height: 14px; }
+
+    /* ── PILLS ── */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; white-space: nowrap;
+      border: 1px solid var(--line2);
+      background: rgba(26,26,26,.4);
+    }
+    .pill.good { border-color: var(--good-border); background: var(--good-dim); color: var(--good); }
+    .pill.bad { border-color: var(--bad-border); background: var(--bad-dim); color: var(--bad); }
+    .pill.warn { border-color: var(--warn-border); background: var(--warn-dim); color: var(--warn); }
+    .pill.loa { border-color: var(--loa-border); background: var(--loa-dim); color: var(--loa); }
+    .pill.accent { border-color: var(--accent-mid); background: var(--accent-dim); color: var(--gold-hi); }
+
+    /* ── SEARCH BAR ── */
+    .search-bar {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: 10px 0;
+    }
+    .search-bar input { flex: 1; min-width: 200px; }
+    .search-bar select { min-width: 180px; }
+
+    /* ── MAIN ── */
+    main { max-width: 1400px; margin: 0 auto; padding: 16px 20px; }
+
+    /* ── PANELS ── */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--r2);
+      overflow: hidden;
+    }
+    .panel + .panel { margin-top: 12px; }
+    .panel-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    }
+    .panel-head .h {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      color: var(--muted); font-weight: 700;
+    }
+    .panel-body { padding: 14px 16px; }
+
+    /* ── HUB GRID ── */
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .card {
+      height: auto;
+      min-height: 100px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r2);
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color .12s, transform .08s;
+      display: flex; flex-direction: column; justify-content: space-between;
+      overflow: hidden;
+      gap: 6px;
+    }
+    .card:hover { border-color: var(--accent-mid); transform: translateY(-1px); }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .card-name { font-weight: 900; font-size: 14px; line-height: 1.2; }
+    .card-meta { color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.3; }
+    .card-hours { font-size: 18px; font-weight: 900; }
+    .card-hours-sub { color: var(--muted); font-size: 11px; }
+    .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+    .card-total { color: var(--muted); font-size: 11px; }
+
+    /* ── PROFILE ── */
+    .profile-header {
+      padding: 16px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+    }
+    .profile-name { font-size: 22px; font-weight: 900; }
+    .profile-meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .profile-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .profile-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+
+    .info-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key { color: var(--muted); min-width: 120px; font-size: 12px; }
+    .info-val { display: flex; align-items: center; gap: 8px; text-align: right; }
+
+    /* ── TRAINING ── */
+    .train-overview { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .train-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      border: 1px solid var(--line2);
+      background: rgba(26,26,26,.3);
+      transition: border-color .12s;
+    }
+    .train-pill.done { border-color: var(--good-border); background: var(--good-dim); color: var(--good); }
+    .train-pill.todo { opacity: .7; }
+    .train-pill.locked { border-color: var(--warn-border); background: var(--warn-dim); color: var(--warn); opacity: .8; }
+    .train-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .train-pill.done .dot { background: var(--good); }
+    .train-pill.todo .dot { background: var(--muted); }
+    .train-pill.locked .dot { background: var(--warn); }
+
+    .train-detail {
+      margin-top: 10px; padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: rgba(20,20,20,.6);
+    }
+    .train-detail-row {
+      display: grid; grid-template-columns: 100px 80px 1fr 1fr; align-items: center; gap: 12px;
+      padding: 8px 0; border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+    .train-detail-row:last-child { border-bottom: none; }
+    @media (max-width: 600px) { .train-detail-row { grid-template-columns: 1fr 1fr; } }
+
+    /* ── CALENDAR ── */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .cal-head { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); text-align: center; padding: 4px; font-weight: 700; }
+    .cal-day {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 100px;
+      display: flex; flex-direction: column;
+      cursor: default;
+      transition: border-color .12s;
+      position: relative;
+    }
+    .cal-day:hover { border-color: var(--accent-mid); }
+    .cal-day .day-num { font-size: 14px; font-weight: 900; color: var(--muted); }
+    .cal-day .day-label { font-size: 14px; font-weight: 700; margin-top: auto; }
+    .cal-day .day-sub { font-size: 10px; color: var(--muted); }
+    .cal-day.good { border-color: var(--good-border); background: var(--good-dim); }
+    .cal-day.good .day-num { color: var(--good); }
+    .cal-day.bad { border-color: var(--bad-border); background: var(--bad-dim); }
+    .cal-day.bad .day-num { color: var(--bad); }
+    .cal-day.loa { border-color: var(--loa-border); background: var(--loa-dim); }
+    .cal-day.loa .day-num { color: var(--loa); }
+    .cal-day .day-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px; }
+    .day-tag { width: 6px; height: 6px; border-radius: 50%; }
+    .day-tag.shift { background: var(--good); }
+    .day-tag.training { background: #6ec0cc; }
+    .day-tag.interview { background: #cc7a6a; }
+    .day-tag.vu-dancer { background: var(--gold-hi); }
+    .day-tag.away-dancer { background: rgba(201,168,76,.45); }
+    .day-tag.meeting { background: #8888aa; }
+    .day-tag.event { background: var(--accent); }
+    .day-tag.loa-tag { background: var(--loa); }
+    .day-tag.other { background: var(--muted); }
+    .day-tag.venue-event { border-radius: 999px; width: auto; height: auto; padding: 1px 6px; font-size: 8px; font-weight: 600; background: transparent !important; }
+
+    /* ── FEEDBACK ENTRIES ── */
+    .entry-card {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: rgba(20,20,20,.4);
+      margin-bottom: 8px;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    }
+    .entry-card .entry-left { flex: 1; }
+    .entry-card .entry-date { font-size: 11px; color: var(--muted); }
+    .entry-card .entry-note { font-size: 12px; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+    .entry-card .entry-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+    /* ── NOTE CARDS ── */
+    .note-card {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: rgba(20,20,20,.4);
+      margin-bottom: 8px;
+    }
+    .note-card .note-date { font-size: 11px; color: var(--muted); }
+    .note-card .note-text { font-size: 12px; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+
+    /* ── HOURS CHART ── */
+    .chart-bar-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .chart-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+    .chart-label { min-width: 120px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chart-bar-bg { flex: 1; height: 20px; background: var(--surface); border-radius: 6px; overflow: hidden; position: relative; }
+    .chart-bar-fill { height: 100%; border-radius: 6px; transition: width .3s; }
+    .chart-value { min-width: 60px; text-align: right; color: var(--muted); font-size: 11px; }
+
+    /* ── MODAL ── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.75);
+      display: none; align-items: center; justify-content: center;
+      padding: 20px; z-index: 50;
+    }
+    .modal {
+      width: min(640px, 100%);
+      max-height: 85vh; overflow-y: auto;
+      background: var(--panel2);
+      border: 1px solid var(--line2);
+      border-radius: var(--r2);
+      box-shadow: var(--shadow);
+    }
+    .modal-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; background: var(--panel2); z-index: 2;
+    }
+    .modal-title { font-weight: 900; font-size: 14px; }
+    .modal-body { padding: 14px 16px; }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--panel2); border: 1px solid var(--line2);
+      border-radius: 999px; padding: 8px 16px;
+      display: none; font-size: 12px; font-weight: 700; z-index: 80;
+      box-shadow: var(--shadow);
+    }
+
+    .hint {
+      padding: 10px 12px; border-radius: var(--r);
+      border: 1px dashed var(--accent-mid);
+      background: var(--accent-dim);
+      font-size: 12px; line-height: 1.4; color: var(--text);
+    }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .row > * { flex: 1; }
+    .tight { flex: 0 0 auto; }
+    .divider { height: 1px; background: var(--line); margin: 12px 0; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    textarea { width: 100%; min-height: 80px; resize: vertical; }
+
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px; font-size: 12px; vertical-align: top; }
+    th { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
+
+    .hidden { display: none !important; }
+
+    .ac-wrap { position: relative; }
+    .ac-wrap input { width: 100%; }
+    .ac-list {
+      position: absolute; left: 0; right: 0; top: 100%;
+      max-height: 160px; overflow-y: auto; z-index: 60;
+      background: var(--panel2); border: 1px solid var(--line2);
+      border-radius: 0 0 var(--r) var(--r); display: none;
+    }
+    .ac-list.open { display: block; }
+    .ac-item {
+      padding: 6px 10px; font-size: 12px; cursor: pointer;
+      border-bottom: 1px solid var(--line);
+    }
+    .ac-item:hover { background: var(--accent-dim); }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-match { font-weight: 700; color: var(--gold-hi); }
+
+    @media (max-width: 600px) {
+      .hub-grid { grid-template-columns: 1fr; }
+      .card { min-height: 90px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="wrap">
+      <div class="hdr-top">
+        <div class="brand">
+          <img class="brand-logo" src="data:image/png;base64,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" alt="VU Logo" />
+          <span class="brand-name">Vanilla Unicorn</span>
+          <span class="brand-sub" id="saveState">saved locally</span>
+        </div>
+        <div class="hdr-actions">
+          <button class="btn-ghost btn-sm" id="overviewBtn">Hours Overview</button>
+          <button class="btn-ghost btn-sm" id="mgmtCalBtn">Mgmt Calendar</button>
+          <button class="btn-ghost btn-sm" id="promoBtn">Promo / EOTM</button>
+          <button class="btn-ghost btn-sm" id="templatesBtn">Templates</button>
+          <button class="btn-ghost btn-sm" id="shiftPerfBtn">Shift Performance</button>
+          <button class="btn-ghost btn-sm" id="blacklistBtn">Blacklist</button>
+          <button class="btn-ghost btn-sm" id="importCsvBtn">Import CSV</button>
+          <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
+          <button class="btn-ghost btn-sm" id="exportBtn">Export</button>
+          <button class="btn-ghost btn-sm" id="importBackupBtn">Import</button>
+          <input type="file" id="backupFile" accept="application/json" style="display:none">
+          <button class="btn-accent btn-sm" id="addPersonBtn">+ Person</button>
+          <button class="btn-ghost btn-sm" id="backBtn" style="display:none;">← Back</button>
+        </div>
+      </div>
+      <div class="search-bar" id="searchBar">
+        <input id="search" placeholder="Search name, steam..." />
+        <select id="sort">
+          <option value="az">A → Z</option>
+          <option value="rank">By Rank</option>
+          <option value="month_desc">Hours: High → Low</option>
+          <option value="month_asc">Hours: Low → High</option>
+          <option value="total_desc">Total: High → Low</option>
+          <option value="total_asc">Total: Low → High</option>
+          <option value="recent">Most Recent</option>
+          <option value="least_recent">Least Recent</option>
+        </select>
+        <button class="btn-ghost btn-sm" id="inactiveBtn">Inactive</button>
+        <button class="btn-ghost btn-sm" id="needsTrainBtn">Needs Training</button>
+        <button class="btn-ghost btn-sm" id="pastBtn">Graveyard</button>
+        <button class="btn-danger btn-sm" id="resetBtn">Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HUB -->
+    <section id="hubView">
+      <div class="hub-grid" id="cards"></div>
+    </section>
+
+    <!-- OVERVIEW (Hours chart) -->
+    <section id="overviewView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Hours Overview</div>
+          <div class="row tight" style="gap:6px;flex-wrap:wrap">
+            <button class="btn-ghost btn-sm" id="ovPrev">←</button>
+            <span class="pill" id="ovMonthLabel">Month</span>
+            <button class="btn-ghost btn-sm" id="ovNext">→</button>
+            <span class="muted small" style="margin-left:8px">Range:</span>
+            <input type="date" id="ovDateFrom" style="font-size:11px;padding:3px 6px;width:110px"/>
+            <input type="date" id="ovDateTo" style="font-size:11px;padding:3px 6px;width:110px"/>
+            <button class="btn-ghost btn-sm" id="ovDateApply" style="font-size:10px">Apply</button>
+            <button class="btn-ghost btn-sm" id="ovDateClear" style="font-size:10px">Clear</button>
+          </div>
+        </div>
+        <div class="panel-body" id="overviewBody">
+          <div class="chart-bar-wrap" id="hoursChart"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MANAGEMENT CALENDAR -->
+    <section id="mgmtCalView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Management Calendar</div>
+          <div class="row tight" style="gap:6px">
+            <button class="btn-ghost btn-sm" id="mcPrev">←</button>
+            <span class="pill" id="mcMonthLabel">Month</span>
+            <button class="btn-ghost btn-sm" id="mcNext">→</button>
+            <button class="btn-accent btn-sm" id="addMgmtEventBtn">+ Entry</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="mgmtCalendar"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILE -->
+    <section id="profileView" style="display:none;">
+      <div class="panel" id="profilePanel"></div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Basic Info</div>
+          <button class="btn-ghost btn-sm" id="editPersonBtn">Edit</button>
+        </div>
+        <div class="panel-body" id="basicInfo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Training</div>
+          <div class="train-overview" id="trainSnap"></div>
+        </div>
+        <div class="panel-body" id="training"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Calendar</div>
+          <div class="row tight" style="gap:6px">
+            <button class="btn-ghost btn-sm" id="pPrevMonth">←</button>
+            <span class="pill" id="pMonthLabel">Month</span>
+            <span class="pill accent" id="pCalTotal">0 hr</span>
+            <button class="btn-ghost btn-sm" id="pNextMonth">→</button>
+            <button class="btn-accent btn-sm" id="addCalEventBtn">+ Event</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="loaBanner" style="display:none;margin-bottom:10px"></div>
+          <div id="calendar"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Feedback</div>
+          <div class="row tight" style="gap:6px">
+            <span class="pill" id="strikePill">Strikes: 0</span>
+            <button class="btn-ghost btn-sm" id="addDisciplineBtn">+ Entry</button>
+          </div>
+        </div>
+
+        <div class="panel-body" id="discipline"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Internal Notes</div>
+          <button class="btn-ghost btn-sm" id="addNoteBtn">+ Note</button>
+        </div>
+        <div class="panel-body" id="notesList"></div>
+      </div>
+    </section>
+
+    <!-- PROMO / EOTM REVIEW -->
+    <section id="reviewView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="h">Promo / EOTM Review</div>
+            <div class="muted small" id="reviewSub"></div>
+          </div>
+          <div class="row tight" style="gap:6px">
+            <button class="btn-ghost btn-sm" id="reviewTabEotm">EOTM</button>
+            <button class="btn-ghost btn-sm" id="reviewTabPromo">Promotions</button>
+          </div>
+        </div>
+        <div class="panel-body" id="reviewBody"></div>
+      </div>
+    </section>
+
+    <!-- TEMPLATES -->
+    <section id="templatesView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Templates &amp; Notes</div>
+          <button class="btn-accent btn-sm" id="addTemplateBtn">+ Template</button>
+        </div>
+        <div class="panel-body" id="templatesBody"></div>
+      </div>
+    </section>
+
+    <!-- SHIFT PERFORMANCE -->
+    <section id="shiftPerfView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Shift Performance</div>
+        </div>
+        <div style="display:flex;min-height:700px">
+          <div style="flex:1;border-right:1px solid var(--line);padding:14px 16px;overflow-y:auto" id="shiftPerfBody"></div>
+          <div style="width:320px;padding:16px;flex-shrink:0" id="shiftPerfSidebar">
+            <div style="margin-bottom:10px"><div class="muted small" style="font-weight:700;margin-bottom:4px">Filter by person</div>
+              <div class="ac-wrap"><input id="spPersonFilter" placeholder="Type name..." style="width:100%;font-size:12px"/></div>
+            </div>
+            <div style="margin-bottom:10px"><div class="muted small" style="font-weight:700;margin-bottom:4px">Date range</div>
+              <div style="display:flex;gap:4px"><input type="date" id="spDateFrom" style="font-size:10px;padding:3px 4px;flex:1"/><input type="date" id="spDateTo" style="font-size:10px;padding:3px 4px;flex:1"/></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <button class="btn-ghost btn-sm" id="spCalPrev" style="padding:2px 8px">&larr;</button>
+              <span class="muted small" style="font-weight:700" id="spCalLabel">Month</span>
+              <button class="btn-ghost btn-sm" id="spCalNext" style="padding:2px 8px">&rarr;</button>
+            </div>
+            <div id="spMiniCal"></div>
+            <div style="margin-top:10px;display:flex;gap:4px;flex-wrap:wrap" id="spMiniLegend"></div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px">
+              <button class="btn-ghost btn-sm" id="spShowAll" style="width:100%">Show all months</button>
+              <button class="btn-ghost btn-sm" id="spClearFilter" style="width:100%">Clear filters</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLACKLIST -->
+    <section id="blacklistView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Blacklist</div>
+          <button class="btn-accent btn-sm" id="addBlacklistBtn">+ Entry</button>
+        </div>
+        <div class="panel-body" id="blacklistBody"></div>
+      </div>
+    </section>
+  </main>
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title" id="modalTitle">Modal</div>
+        <button class="btn-ghost btn-sm" id="closeModalBtn">Close</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const STORE_KEY = "vuTracker.local.v1";
+const TZ = "America/Chicago";
+
+const MIN_SHIFT_MINUTES = 30;
+// Activity requirement: 1 shift per month = 30 min
+const MONTHLY_MIN_MS = MIN_SHIFT_MINUTES * 60 * 1000;
+
+const FIXED_ROLES = ["Dancer","Security","Bartender","DJ"];
+const RANKS = ["Employee","Senior Employee","Supervisor","Manager","Director"];
+const MGMT_RANKS = ["Supervisor","Manager","Director"];
+
+function isMgmtRank(rank){ const r=(rank||'').trim(); return MGMT_RANKS.some(m=>m.toLowerCase()===r.toLowerCase()); }
+function isSeniorPlus(rank){ const r=(rank||'').trim().toLowerCase(); return ['senior employee','supervisor','manager','director'].some(x=>x===r); }
+
+// ═══════════════════════════════════════════
+// DOM HELPERS
+// ═══════════════════════════════════════════
+const $ = s => document.querySelector(s);
+function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+function escapeHtml(s){
+  return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function toast(msg="Copied"){
+  const t=$("#toast"); t.textContent=msg; t.style.display="block";
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display="none",900);
+}
+async function copyText(txt){
+  try{ await navigator.clipboard.writeText(txt); toast("Copied"); }
+  catch{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast("Copied"); }
+}
+
+// ═══════════════════════════════════════════
+// DATE / TIME
+// ═══════════════════════════════════════════
+function startOfMonth(d){ const x=new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
+function endOfMonth(d){ const x=new Date(d); x.setMonth(x.getMonth()+1); x.setDate(1); x.setHours(0,0,0,0); return x; }
+function fmtMonthLabel(d){ return new Intl.DateTimeFormat("en-US",{month:"long",year:"numeric"}).format(d); }
+function toLocalISODate(iso){
+  const d=new Date(iso);
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+  return `${p.find(x=>x.type==="year").value}-${p.find(x=>x.type==="month").value}-${p.find(x=>x.type==="day").value}`;
+}
+function formatLocal(iso){
+  if(!iso) return "";
+  return new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"2-digit",day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(iso));
+}
+function durLabel(ms){
+  const m=Math.max(0,Math.round(ms/(1000*60))); const h=Math.floor(m/60); const mn=m%60;
+  if(h<=0) return `${mn}m`; if(mn===0) return `${h}h`; return `${h}h ${mn}m`;
+}
+function daysSince(iso){ return iso ? (Date.now()-new Date(iso).getTime())/(1000*60*60*24) : Infinity; }
+function fmtMDY(d){ const dt=d instanceof Date?d:new Date(d); return `${String(dt.getMonth()+1).padStart(2,"0")}/${String(dt.getDate()).padStart(2,"0")}/${dt.getFullYear()}`; }
+function dateValueFromISO(iso){
+  if(!iso) return "";
+  // If it's already a plain YYYY-MM-DD, return as-is
+  if(/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  // Parse timezone-aware to local date parts
+  const d=new Date(iso);
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+  return `${p.find(x=>x.type==="year").value}-${p.find(x=>x.type==="month").value}-${p.find(x=>x.type==="day").value}`;
+}
+function isoFromDateValue(ymd){
+  const s=(ymd||'').trim(); if(!s) return null;
+  // Create date at noon LOCAL time to avoid day-boundary issues
+  const [y,m,d]=s.split('-').map(Number);
+  if(!y||!m||!d) return null;
+  const dt=new Date(y, m-1, d, 12, 0, 0, 0);
+  return isNaN(dt.getTime())?null:dt.toISOString();
+}
+function dateInputToISOStart(ymd){ const m=(ymd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return null; return new Date(+m[1],+m[2]-1,+m[3],0,0,0,0).toISOString(); }
+function dateInputToISOEnd(ymd){ const m=(ymd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return null; return new Date(+m[1],+m[2]-1,+m[3],23,59,59,999).toISOString(); }
+function dateValueFromStored(s){ if(!s) return ''; if(s.includes('T')) return dateValueFromISO(s); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; return ''; }
+
+// ═══════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════
+function parseCSV(text){
+  const out=[]; let i=0,field="",row=[],inQ=false;
+  function pf(){ row.push(field); field=""; }
+  function pr(){ if(row.some(x=>(x??"").trim()!=="")) out.push(row); row=[]; }
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){ if(c==='"'&&text[i+1]==='"'){field+='"';i+=2;continue;} if(c==='"'){inQ=false;i++;continue;} field+=c;i++;continue; }
+    else{ if(c==='"'){inQ=true;i++;continue;} if(c===','){pf();i++;continue;} if(c==='\r'){i++;continue;} if(c==='\n'){pf();pr();i++;continue;} field+=c;i++;continue; }
+  }
+  pf(); pr();
+  const headers=(out.shift()||[]).map(h=>h.trim());
+  return out.map(r=>{ const obj={}; headers.forEach((h,idx)=>obj[h]=(r[idx]??"").trim()); return obj; });
+}
+function normalizeType(t){ const x=(t||"").toUpperCase(); if(x.includes("IN")) return "IN"; if(x.includes("OUT")) return "OUT"; return ""; }
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+function seed(){
+  return {
+    version:1, monthCursor:new Date().toISOString(), profileMonthCursor:new Date().toISOString(),
+    overviewMonthCursor:new Date().toISOString(), mgmtMonthCursor:new Date().toISOString(),
+    selectedId:null,
+    ui:{inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"},
+    people:[], clockEvents:[], loas:[], entries:[], notesEntries:[], eotmHistory:[],
+    calendarEvents:[],
+    trainingNotes:[],
+    mgmtEvents:[],
+    shiftTags:[],
+    templates:[]
+  };
+}
+
+function ensureState(data){
+  if(!data||!Array.isArray(data.people)) return seed();
+  data.clockEvents||=[];data.loas||=[];data.entries||=[];data.notesEntries||=[];data.eotmHistory||=[];
+  data.calendarEvents||=[];data.trainingNotes||=[];data.mgmtEvents||=[];data.shiftTags||=[];data.templates||=[];
+  data.ui||={inactiveOnly:false,showArchived:false};
+  data.ui.reviewTab||="eotm"; data.ui.view||="hub";
+  data.profileMonthCursor||=data.monthCursor||new Date().toISOString();
+  data.overviewMonthCursor||=data.monthCursor||new Date().toISOString();
+  data.mgmtMonthCursor||=data.monthCursor||new Date().toISOString();
+  return data;
+}
+
+let state = seed();
+
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); $("#saveState").textContent="saved locally"; }
+  catch(e){ console.error("Save error:",e); $("#saveState").textContent="save failed!"; }
+}
+
+function boot(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(raw){ state=ensureState(JSON.parse(raw)); }
+  }catch(e){ state=seed(); }
+  startApp();
+}
+
+function startApp(){
+  // Auto-archive Unknown/empty character names
+  let cleaned=false;
+  for(const p of state.people){
+    if(!p.archived && (!p.character || p.character.toLowerCase()==='unknown')){
+      p.archived=true; cleaned=true;
+    }
+  }
+  if(cleaned) save();
+
+  if(state.ui?.view==="review") renderReviewPage();
+  else if(state.ui?.view==="overview") renderOverview();
+  else if(state.ui?.view==="mgmtcal") renderMgmtCal();
+  else if(state.ui?.view==="templates") renderTemplates();
+  else if(state.ui?.view==="shiftperf") renderShiftPerf();
+  else if(state.ui?.view==="blacklist") renderBlacklist();
+  else if(state.selectedId) renderProfile();
+  else renderHub();
+}
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function openModal(title,html){
+  $("#modalTitle").textContent=title; $("#modalBody").innerHTML=html; $("#modalBackdrop").style.display="flex";
+}
+function closeModal(){
+  // Auto-save basics if that form is open
+  const empNum=document.getElementById('e_empNum');
+  if(empNum){
+    const p=getPerson(state.selectedId);
+    if(p){
+      p.employeeNumber=(empNum.value||'').trim();
+      p.character=($("#e_character").value||'').trim(); p.rank=$("#e_rank").value||'';
+      p.stageName=($("#e_stageName").value||'').trim();
+      p.discord=($("#e_discord").value||'').trim(); p.discordId=($("#e_discordId").value||'').trim();
+      p.timeZone=($("#e_tz").value||'').trim(); p.bankAccount=($("#e_bank").value||'').trim();
+      p.phone=($("#e_phone").value||'').trim();
+      save();
+    }
+  }
+  $("#modalBackdrop").style.display="none";
+  if(state.ui?.view==='profile') renderProfile();
+}
+$("#closeModalBtn").addEventListener("click",closeModal);
+$("#modalBackdrop").addEventListener("click",e=>{ if(e.target.id==="modalBackdrop") closeModal(); });
+
+// ═══════════════════════════════════════════
+// DATA SHAPES
+// ═══════════════════════════════════════════
+function ensurePerson(p){
+  p.id||=uid(); p.steam||=""; p.steamName||=""; p.character||=""; p.callsign||="";
+  p.discord||=""; p.discordId||=""; p.timeZone||=""; p.bankAccount||=""; p.rank||="";
+  p.employeeNumber||=""; p.stageName||=""; p.phone||="";
+  p.training||={sop:{done:false,trainerId:"",date:"",comment:""},roles:{}};
+  p.training.sop||={done:false,trainerId:"",date:"",comment:""};
+  p.training.roles||={};
+  for(const r of FIXED_ROLES) p.training.roles[r]||={trainerId:"",date:"",comment:""};
+  p.priorityRole||=""; p.crossTrain||=[]; p.notes||=""; p.archived=!!p.archived;
+}
+function getPerson(id){ const p=state.people.find(x=>x.id===id); if(p) ensurePerson(p); return p; }
+function eventsForPerson(pid){ return state.clockEvents.filter(e=>e.personId===pid).slice().sort((a,b)=>new Date(a.timeISO)-new Date(b.timeISO)); }
+function lastClockInISO(pid){ const ev=eventsForPerson(pid).filter(e=>e.type==="IN").pop(); return ev?.timeISO||null; }
+function isOnLOA(pid,when=new Date()){ const t=when.getTime(); return state.loas.some(l=>l.personId===pid&&new Date(l.startISO).getTime()<=t&&t<=new Date(l.endISO).getTime()); }
+function loasForPerson(pid){ return state.loas.filter(l=>l.personId===pid).slice().sort((a,b)=>new Date(a.startISO)-new Date(b.startISO)); }
+function entriesForPerson(pid){ return state.entries.filter(x=>x.personId===pid).slice().sort((a,b)=>new Date(b.dateISO)-new Date(a.dateISO)); }
+function notesForPerson(pid){ return (state.notesEntries||[]).filter(n=>n.personId===pid).slice().sort((a,b)=>new Date(b.dateISO)-new Date(a.dateISO)); }
+function trainingNotesForPerson(pid){ return (state.trainingNotes||[]).filter(n=>n.personId===pid).slice().sort((a,b)=>new Date(b.dateISO)-new Date(a.dateISO)); }
+function calEventsForPerson(pid){ return (state.calendarEvents||[]).filter(e=>e.personId===pid).slice().sort((a,b)=>new Date(a.dateISO)-new Date(b.dateISO)); }
+
+function normalizeKind(k){ const v=(k||'').trim(); if(!v) return 'Verbal Discussion'; if(v==='Correction') return 'Warning'; if(v==='Comment'||v==='Commendation') return 'Verbal Discussion'; if(v==='Discipline') return 'Strike'; if(v==='Positive'||v==='Improvement') return v; return v; }
+function isStrike(e){ return normalizeKind(e.kind)==="Strike"; }
+function strikesInMonth(pid,md){ const f=startOfMonth(md),t=endOfMonth(md); return entriesForPerson(pid).filter(e=>isStrike(e)).filter(e=>{const d=new Date(e.dateISO);return d>=f&&d<t;}).length; }
+
+// Shift tag helpers
+const SHIFT_ROLES = ["Dancer (VU)","Dancer (Away)","Security","Bartender","DJ"];
+
+// Venue event types for mgmt calendar sync
+const VENUE_EVENT_TYPES = [
+  {value:'vu_opening', label:'VU Opening', color:'#c864a0'},
+  {value:'variable_opening', label:'Variable Opening', color:'#4ea0d2'},
+  {value:'rental', label:'Rental', color:'#c9a84c'},
+  {value:'special_event', label:'Special Event', color:'#e0e0e0'}
+];
+function venueTypeLabel(val){ const t=VENUE_EVENT_TYPES.find(x=>x.value===val); return t?t.label:val; }
+function venueTypeColor(val){ const t=VENUE_EVENT_TYPES.find(x=>x.value===val); return t?t.color:'var(--muted)'; }
+
+function buildLegend(showShift){
+  const items=[];
+  if(showShift) items.push({label:'Shift',color:'#6aaa6a'});
+  items.push({label:'Training',color:'#6ec0cc'});
+  items.push({label:'Interview',color:'#cc7a6a'});
+  if(showShift) items.push({label:'LOA',color:'#9988bb'});
+  for(const v of VENUE_EVENT_TYPES) items.push({label:v.label,color:v.color});
+  return `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;padding:6px 0">${items.map(i=>`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;color:${i.color};border:1.5px solid ${i.color}">${escapeHtml(i.label)}</span>`).join('')}</div>`;
+}
+
+function shiftTagForDay(pid, dateKey){
+  return (state.shiftTags||[]).find(t=>t.personId===pid&&t.dateKey===dateKey)||null;
+}
+function setShiftTag(pid, dateKey, role){
+  state.shiftTags||=[];
+  const existing=state.shiftTags.find(t=>t.personId===pid&&t.dateKey===dateKey);
+  if(existing){ if(role) existing.role=role; else state.shiftTags=state.shiftTags.filter(t=>!(t.personId===pid&&t.dateKey===dateKey)); }
+  else if(role){ state.shiftTags.push({id:uid(),personId:pid,dateKey,role}); }
+}
+
+// Consecutive VU dancer shift check (uses shiftTags)
+function consecutiveVuDancerCount(pid){
+  // NEW SYSTEM: roster data from mgmt events
+  const openings=(state.mgmtEvents||[]).filter(me=>me.type==='event'&&!me.cancelled)
+    .sort((a,b)=>(dateValueFromISO(a.dateISO)||'').localeCompare(dateValueFromISO(b.dateISO)||''));
+  let rosterCount=0;
+  for(let i=openings.length-1;i>=0;i--){
+    const me=openings[i];
+    const rosterEntry=(me.roster||[]).find(r=>r.personId===pid);
+    if(!rosterEntry) continue;
+    const isVU=me.venueType==='vu_opening';
+    const isDancer=rosterEntry.role==='Dancer';
+    if(isVU && isDancer){
+      rosterCount++;
+    } else if(isVU && !isDancer){
+      break;
+    }
+  }
+  // LEGACY SYSTEM: shiftTags
+  let legacyCount=0;
+  const tagged=(state.shiftTags||[]).filter(t=>t.personId===pid).sort((a,b)=>a.dateKey.localeCompare(b.dateKey));
+  for(let i=tagged.length-1;i>=0;i--){
+    if(tagged[i].role==='Dancer (VU)') legacyCount++;
+    else break;
+  }
+  return Math.max(rosterCount, legacyCount);
+}
+
+// ═══════════════════════════════════════════
+// ACTIVITY POLICY
+// 1 shift per month required. LOAs excused.
+// 30 days since last clock-in = INACTIVE
+// ═══════════════════════════════════════════
+function getMonthlyHoursMs(pid, monthDate){
+  return computeMonthly(pid, monthDate).countedMs;
+}
+
+function activityStatus(pid){
+  const now = new Date();
+  if(isOnLOA(pid, now)) return { state:'LOA', message:null };
+
+  const thisMonth = startOfMonth(now);
+  const thisMonthMs = getMonthlyHoursMs(pid, thisMonth);
+
+  if(thisMonthMs >= MONTHLY_MIN_MS) return { state:'ACTIVE', message:null };
+
+  const lastIn = lastClockInISO(pid);
+  const daysSinceLastIn = lastIn ? (Date.now()-new Date(lastIn).getTime())/(1000*60*60*24) : Infinity;
+
+  if(daysSinceLastIn >= 30){
+    return { state:'INACTIVE', message:'inactivity', lastClockIn:lastIn };
+  }
+
+  const daysLeft = new Date(thisMonth.getFullYear(), thisMonth.getMonth()+1, 0).getDate() - now.getDate();
+  return { state:'PENDING', message:null, daysLeft };
+}
+
+function activityMsgTemplate(which, name, lastClockIn){
+  if(which==='inactivity'){
+    const lastDate = lastClockIn ? fmtMDY(lastClockIn) : 'an unknown date';
+    return `Hi,\nWe see that you have not clocked in to any of our venues since ${lastDate}. If you are looking to continue your employment at Vanilla Venues, you will need to make attempts to clock in to one of our openings within the next week, or your employment will be terminated. If you need to create or extend an LOA for any reason, please reach out to management in order to do so. As a reminder, any employee is able to request a location to be opened in discussion or by messaging a supervisor+. If you have any questions or concerns about your ability to clock in within the next week, reach out to myself or another supervisor+.\n-VV Management`;
+  }
+  return '';
+}
+
+// ═══════════════════════════════════════════
+// SHIFT COMPUTATION
+// ═══════════════════════════════════════════
+function computeMonthly(pid, monthDate){
+  const from=startOfMonth(monthDate), to=endOfMonth(monthDate);
+  const all=eventsForPerson(pid);
+  const monthEvents=all.filter(e=>{const t=new Date(e.timeISO);return t>=from&&t<to;});
+  let openIn=null, countedMs=0, redMs=0;
+  const byDay=new Map();
+
+  function addSeg(inISO,outISO,ms,isRed,flag){
+    const dk=toLocalISODate(inISO);
+    const cur=byDay.get(dk)||{countedMs:0,redMs:0,segments:[]};
+    cur.segments.push({in:inISO,out:outISO,ms,isRed,flag});
+    cur.countedMs+=ms; if(isRed) cur.redMs+=ms;
+    byDay.set(dk,cur);
+  }
+
+  for(const e of monthEvents){
+    if(e.type==="IN"){
+      if(openIn){
+        const ms=MIN_SHIFT_MINUTES*60*1000;
+        countedMs+=ms;
+        addSeg(openIn.timeISO, new Date(new Date(openIn.timeISO).getTime()+ms).toISOString(), ms, false, "AUTO-CAPPED (missing clock-out)");
+      }
+      openIn=e;
+    } else if(e.type==="OUT"){
+      if(!openIn) continue;
+      const ms=new Date(e.timeISO)-new Date(openIn.timeISO);
+      if(ms<=0){openIn=null;continue;}
+      countedMs+=ms;
+      if(ms/(1000*60)<MIN_SHIFT_MINUTES){
+        redMs+=ms;
+        addSeg(openIn.timeISO, e.timeISO, ms, true, `UNDER ${MIN_SHIFT_MINUTES} MIN (flagged but counted)`);
+      } else {
+        addSeg(openIn.timeISO, e.timeISO, ms, false, "");
+      }
+      openIn=null;
+    }
+  }
+  if(openIn){
+    const ms=MIN_SHIFT_MINUTES*60*1000; countedMs+=ms;
+    addSeg(openIn.timeISO, new Date(new Date(openIn.timeISO).getTime()+ms).toISOString(), ms, false, "AUTO-CAPPED (missing clock-out)");
+  }
+  return {countedMs, redMs, byDay};
+}
+
+function computeTotalsAllTime(pid){
+  const all=eventsForPerson(pid); let openIn=null, ms=0;
+  for(const e of all){
+    if(e.type==="IN"){ if(openIn) ms+=MIN_SHIFT_MINUTES*60*1000; openIn=e; }
+    else if(e.type==="OUT"){ if(!openIn) continue; const d=new Date(e.timeISO)-new Date(openIn.timeISO); if(d>0) ms+=d; openIn=null; }
+  }
+  if(openIn) ms+=MIN_SHIFT_MINUTES*60*1000;
+  return ms;
+}
+
+// ═══════════════════════════════════════════
+// CSV IMPORT
+// ═══════════════════════════════════════════
+function clockEventExists(pid,type,timeISO){ return state.clockEvents.some(e=>e.personId===pid&&e.type===type&&e.timeISO===timeISO); }
+function findPersonForRow(r){
+  const steam=(r["Steam"]||"").trim(), character=(r["Character"]||"").trim();
+  if(steam) return state.people.find(p=>(p.steam||"").trim()===steam)||null;
+  if(character) return state.people.find(p=>(p.character||"").trim().toLowerCase()===character.toLowerCase())||null;
+  return null;
+}
+function autoCreatePersonFromRow(r,timeISO){
+  const p={id:uid(),steam:(r["Steam"]||"").trim(),steamName:(r["Steam Name"]||"").trim(),
+    character:(r["Character"]||"").trim(),callsign:(r["Callsign"]||"").trim(),
+    discord:"",discordId:"",timeZone:"",bankAccount:"",rank:"",priorityRole:"",crossTrain:[],
+    training:{sop:{done:false,trainerId:"",date:"",comment:""},roles:{}},notes:""};
+  try{const d=Math.floor((Date.now()-new Date(timeISO).getTime())/(1000*60*60*24));if(isFinite(d)&&d>120)p.archived=true;}catch{}
+  ensurePerson(p); state.people.push(p); return p;
+}
+
+function importCSVFile(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=parseCSV(reader.result);
+      if(!parsed.length) throw new Error("CSV had no rows.");
+      const req=["Steam","Steam Name","Callsign","Character","Type","Time"];
+      for(const k of req) if(!(k in parsed[0])) throw new Error(`Missing column: ${k}`);
+      let created=0,updated=0,added=0,skipped=0;
+      for(const r of parsed){
+        const type=normalizeType(r["Type"]),timeISO=(r["Time"]||"").trim();
+        const character=(r["Character"]||"").trim(),steam=(r["Steam"]||"").trim();
+        if(!type||!timeISO||isNaN(new Date(timeISO).getTime())||(!steam&&!character)){skipped++;continue;}
+        let p=findPersonForRow(r);
+        if(!p){p=autoCreatePersonFromRow(r,timeISO);created++;}
+        else{
+          ensurePerson(p);
+          try{const d=Math.floor((Date.now()-new Date(timeISO).getTime())/(1000*60*60*24));if(p.archived&&isFinite(d)&&d<=14)p.archived=false;}catch{}
+          const canUpdate=!p.archived;
+          if(canUpdate){
+            const sn=(r["Steam Name"]||"").trim(),cs=(r["Callsign"]||"").trim(),ch=(r["Character"]||"").trim();
+            if(sn)p.steamName=sn; if(cs)p.callsign=cs; if(ch)p.character=ch;
+          }
+          if(steam&&!p.steam) p.steam=steam;
+          ensurePerson(p); updated++;
+        }
+        if(clockEventExists(p.id,type,timeISO)){skipped++;continue;}
+        state.clockEvents.push({id:uid(),personId:p.id,type,timeISO,source:"csv"}); added++;
+      }
+      save();
+      // Auto-archive anyone with Unknown or empty character name
+      for(const p of state.people){
+        if(!p.archived && (!p.character || p.character.toLowerCase()==='unknown')){
+          p.archived=true;
+        }
+      }
+      save();
+      alert(`CSV imported.\nCreated: ${created}\nUpdated: ${updated}\nEvents: ${added}\nSkipped: ${skipped}`);
+      if(state.selectedId) renderProfile(); else renderHub();
+    }catch(e){ alert("CSV import failed: "+e.message); }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════
+// BACKUP
+// ═══════════════════════════════════════════
+function exportBackup(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download="vu-tracker-backup.json"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+function importBackup(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!data||!Array.isArray(data.people)) throw new Error("Invalid backup.");
+      state=ensureState(data); save();
+      if(state.selectedId) renderProfile(); else renderHub();
+      alert("Backup imported.");
+    }catch(e){ alert("Backup import failed: "+e.message); }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════
+// EOTM
+// ═══════════════════════════════════════════
+function eotmForPerson(pid){ return (state.eotmHistory||[]).filter(x=>x.personId===pid).sort((a,b)=>new Date(b.monthISO)-new Date(a.monthISO)); }
+function lastEotmLabel(pid){ const l=eotmForPerson(pid)[0]; if(!l) return "—"; const d=new Date(l.monthISO); return `${d.toLocaleString(undefined,{month:"short"})} ${d.getFullYear()}`; }
+function monthContextCounts(pid,md){
+  const f=startOfMonth(md),t=endOfMonth(md);
+  const ents=entriesForPerson(pid).filter(e=>{const d=new Date(e.dateISO);return d>=f&&d<t;});
+  return { strikes:ents.filter(e=>normalizeKind(e.kind)==='Strike').length, warnings:ents.filter(e=>normalizeKind(e.kind)==='Warning').length, suspensions:ents.filter(e=>normalizeKind(e.kind)==='Suspension').length, verbals:ents.filter(e=>normalizeKind(e.kind)==='Verbal Discussion').length, positives:ents.filter(e=>normalizeKind(e.kind)==='Positive').length, improvements:ents.filter(e=>normalizeKind(e.kind)==='Improvement').length };
+}
+function markEotm(pid,md){
+  const m=startOfMonth(md).toISOString();
+  if((state.eotmHistory||[]).some(x=>x.personId===pid&&startOfMonth(new Date(x.monthISO)).toISOString()===m)){toast("Already marked");return;}
+  state.eotmHistory||=[];state.eotmHistory.push({id:uid(),personId:pid,monthISO:m,note:""});
+  save();toast("EOTM saved");
+  if(state.ui?.view==="review") renderReviewPage();
+  if(state.selectedId) renderProfile();
+}
+
+// ═══════════════════════════════════════════
+// MANAGEMENT TRAINER OPTIONS (by rank)
+// ═══════════════════════════════════════════
+function managementTrainerOptions(){
+  return state.people.filter(p=>isMgmtRank(p.rank)&&!p.archived).map(p=>{
+    ensurePerson(p);
+    return {id:p.id, label:`${p.character||p.steamName||"Unknown"} — ${p.rank||""}`};
+  }).sort((a,b)=>a.label.localeCompare(b.label,undefined,{sensitivity:"base"}));
+}
+
+// ═══════════════════════════════════════════
+// RENDER: HUB
+// ═══════════════════════════════════════════
+function renderHub(){
+  $("#hubView").style.display="";
+  $("#profileView").style.display="none";
+  $("#overviewView").style.display="none";
+  document.getElementById('reviewView').style.display="none";
+  document.getElementById('mgmtCalView').style.display="none";
+  document.getElementById('templatesView').style.display="none";
+  document.getElementById('shiftPerfView').style.display="none";
+  $("#backBtn").style.display="none";
+  $("#searchBar").style.display="";
+  state.ui.view="hub"; state.selectedId=null;
+  state.monthCursor=new Date().toISOString();
+  save();
+
+  const q=($("#search").value||"").trim().toLowerCase();
+  const sort=$("#sort").value;
+  const monthDate=startOfMonth(new Date());
+  const showArchived=!!(state.ui?.showArchived);
+  const inactiveOnly=!!(state.ui?.inactiveOnly);
+  const needsTrainOnly=!!(state.ui?.needsTrainOnly);
+
+  const ib=$("#inactiveBtn");
+  if(ib){ ib.className=`btn-${inactiveOnly?'accent':'ghost'} btn-sm`; ib.textContent=inactiveOnly?'Inactive ✓':'Inactive'; }
+  const ntb=document.getElementById('needsTrainBtn');
+  if(ntb){ ntb.className=`btn-${needsTrainOnly?'accent':'ghost'} btn-sm`; ntb.textContent=needsTrainOnly?'Needs Training ✓':'Needs Training'; }
+  const pb=$("#pastBtn");
+  if(pb){ pb.className=`btn-${showArchived?'accent':'ghost'} btn-sm`; pb.textContent=showArchived?'Graveyard ✓':'Graveyard'; }
+
+  function personNeedsTraining(p){
+    ensurePerson(p);
+    if(!p.training.sop?.done) return true;
+    const hasAnyRole=FIXED_ROLES.some(r=>!!(p.training.roles[r]?.date));
+    return !hasAnyRole;
+  }
+
+  const rankOrder = r => RANKS.indexOf(r) === -1 ? -1 : RANKS.indexOf(r);
+
+  const items=state.people.filter(p=>showArchived?!!p.archived:!p.archived).map(p=>{
+    ensurePerson(p);
+    const monthly=computeMonthly(p.id,monthDate);
+    const total=computeTotalsAllTime(p.id);
+    const lastIn=lastClockInISO(p.id);
+    const activity=activityStatus(p.id);
+    const hay=`${p.character} ${p.steamName} ${p.callsign} ${p.steam}`.toLowerCase();
+    const pass=!q||hay.includes(q);
+    const strikes=strikesInMonth(p.id,monthDate);
+    const untrained=personNeedsTraining(p);
+    const vuDancerStreak=consecutiveVuDancerCount(p.id);
+    return {p,monthly,total,lastIn,activity,strikes,pass,untrained,vuDancerStreak};
+  }).filter(x=>x.pass)
+    .filter(x=>!inactiveOnly||(x.activity.state==='INACTIVE'))
+    .filter(x=>!needsTrainOnly||x.untrained);
+
+  function byName(a,b){ return (a.p.character||"").localeCompare(b.p.character||"",undefined,{sensitivity:"base"}); }
+  function byRank(a,b){ return rankOrder(b.p.rank)-rankOrder(a.p.rank)||byName(a,b); }
+
+  items.sort((a,b)=>{
+    if(sort==="az") return byName(a,b);
+    if(sort==="rank") return byRank(a,b);
+    if(sort==="month_desc") return (b.monthly.countedMs-a.monthly.countedMs)||byName(a,b);
+    if(sort==="month_asc") return (a.monthly.countedMs-b.monthly.countedMs)||byName(a,b);
+    if(sort==="total_desc") return (b.total-a.total)||byName(a,b);
+    if(sort==="total_asc") return (a.total-b.total)||byName(a,b);
+    if(sort==="recent"){ const bt=b.lastIn?new Date(b.lastIn).getTime():0,at=a.lastIn?new Date(a.lastIn).getTime():0; return (bt-at)||byName(a,b); }
+    if(sort==="least_recent"){ const at=a.lastIn?new Date(a.lastIn).getTime():0,bt=b.lastIn?new Date(b.lastIn).getTime():0; return (at-bt)||byName(a,b); }
+    return byName(a,b);
+  });
+
+  const cards=$("#cards");
+  cards.innerHTML="";
+  if(!items.length){cards.innerHTML=`<div class="panel" style="padding:16px"><div class="muted">No matches.</div></div>`;return;}
+
+  for(const it of items){
+    const p=it.p, a=it.activity;
+    let badge="";
+    if(a.state==='LOA') badge=`<span class="pill loa">LOA</span>`;
+    else if(a.state==='INACTIVE') badge=`<span class="pill bad">INACTIVE 30d+</span>`;
+    else if(a.state==='PENDING') badge=`<span class="pill accent">${it.monthly.countedMs>0?durLabel(it.monthly.countedMs)+' this mo':'PENDING'}</span>`;
+    else badge=`<span class="pill good">ACTIVE</span>`;
+    if(it.strikes>=3) badge+=` <span class="pill bad">3 STRIKES</span>`;
+    if(it.vuDancerStreak>=3) badge+=` <span class="pill bad">${it.vuDancerStreak} VU Dancer — rotate</span>`;
+
+    const el=document.createElement("div"); el.className="card";
+    el.innerHTML=`
+      <div class="card-top">
+        <div>
+          <div class="card-name">${escapeHtml(p.character||"(no name)")}</div>
+          <div class="card-meta">${escapeHtml(p.rank||"—")} · ${escapeHtml(p.steamName||"—")}</div>
+        </div>
+        ${badge}
+      </div>
+      <div class="card-bottom">
+        <div>
+          <div class="card-hours">${escapeHtml(durLabel(it.monthly.countedMs))}</div>
+          <div class="card-hours-sub">this month</div>
+        </div>
+        <div class="card-total">Total: ${escapeHtml(durLabel(it.total))}</div>
+      </div>
+      ${showArchived?`<button class="btn-accent btn-sm" style="margin-top:8px;align-self:flex-end" data-revive="${escapeHtml(p.id)}">Revive</button>`:''}
+    `;
+    el.addEventListener("click",e=>{
+      if(e.target.matches("button[data-revive]")) return;
+      state.selectedId=p.id; state.profileMonthCursor=new Date().toISOString();
+      state.ui.view="profile"; save(); renderProfile();
+    });
+    cards.appendChild(el);
+  }
+  document.querySelectorAll("button[data-revive]").forEach(btn=>{
+    btn.addEventListener("click",e=>{
+      e.preventDefault();e.stopPropagation();
+      const pp=state.people.find(x=>x.id===btn.getAttribute("data-revive"));
+      if(pp){pp.archived=false;save();renderHub();}
+    });
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: HOURS OVERVIEW
+// ═══════════════════════════════════════════
+function renderOverview(){
+  $("#hubView").style.display="none";
+  $("#profileView").style.display="none";
+  $("#overviewView").style.display="";
+  document.getElementById('reviewView').style.display="none";
+  document.getElementById('mgmtCalView').style.display="none";
+  document.getElementById('templatesView').style.display="none";
+  document.getElementById('shiftPerfView').style.display="none";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+  state.ui.view="overview"; save();
+
+  const md=startOfMonth(new Date(state.overviewMonthCursor));
+  const ovFrom=document.getElementById('ovDateFrom');
+  const ovTo=document.getElementById('ovDateTo');
+  const hasRange=ovFrom&&ovFrom.value&&ovTo&&ovTo.value;
+  
+  if(hasRange){
+    $("#ovMonthLabel").textContent=`${fmtMDY(ovFrom.value)} — ${fmtMDY(ovTo.value)}`;
+  } else {
+    $("#ovMonthLabel").textContent=fmtMonthLabel(md);
+  }
+
+  function computeRangeMs(pid){
+    if(!hasRange) return computeMonthly(pid,md).countedMs;
+    const fromD=new Date(ovFrom.value+'T00:00:00');
+    const toD=new Date(ovTo.value+'T23:59:59');
+    let total=0;
+    const cur=new Date(fromD); cur.setDate(1);
+    while(cur<=toD){
+      total+=computeMonthly(pid,cur).countedMs;
+      cur.setMonth(cur.getMonth()+1);
+    }
+    return total;
+  }
+
+  const items=state.people.filter(p=>!p.archived).map(p=>{
+    ensurePerson(p);
+    const ms=computeRangeMs(p.id);
+    const activity=activityStatus(p.id);
+    return {id:p.id, name:p.character||p.steamName||"Unknown", rank:p.rank||"",
+      discordId:p.discordId||"", ms, activity, isMgmt:isMgmtRank(p.rank)};
+  }).sort((a,b)=>b.ms-a.ms);
+
+  const maxMs=Math.max(...items.map(x=>x.ms), MONTHLY_MIN_MS);
+  const chart=$("#hoursChart");
+
+  chart.innerHTML=items.map(it=>{
+    const pct=maxMs>0?Math.round(it.ms/maxMs*100):0;
+    const met=it.ms>=MONTHLY_MIN_MS;
+    const color=met?'var(--good)':'var(--bad)';
+    const a=it.activity;
+
+    let statusBadge='';
+    if(a.state==='LOA') statusBadge=`<span class="pill loa" style="font-size:9px">LOA</span>`;
+    else if(a.state==='INACTIVE') statusBadge=`<span class="pill bad" style="font-size:9px">INACTIVE</span>`;
+    else if(a.state==='PENDING') statusBadge=`<span class="pill accent" style="font-size:9px">PENDING</span>`;
+    else statusBadge=`<span class="pill good" style="font-size:9px">OK</span>`;
+
+    const nameColor=it.isMgmt?'color:var(--accent)':'';
+    const nameClickable=it.discordId?`cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px`:'';
+    const nameData=it.discordId?`data-ov-copy-dc="${escapeHtml(it.discordId)}"`:'';
+
+    const pillClickable=(a.state==='INACTIVE')?`cursor:pointer`:'';
+    const pillData=(a.state==='INACTIVE')?`data-ov-copy-msg="${escapeHtml(activityMsgTemplate('inactivity',it.name,a.lastClockIn))}"`:'';
+
+    return `
+      <div class="chart-row" style="padding:4px 0">
+        <div class="chart-label" title="${it.discordId?'Click to copy Discord ID':escapeHtml(it.rank)}" style="display:flex;align-items:center;gap:6px;${nameColor};${nameClickable}" ${nameData}>
+          ${escapeHtml(it.name)}
+        </div>
+        <div class="chart-bar-bg" data-ov-profile="${escapeHtml(it.id)}" style="cursor:pointer" title="Click to view profile">
+          <div class="chart-bar-fill" style="width:${pct}%;background:${color};"></div>
+          <div style="position:absolute;left:${Math.min(Math.round(MONTHLY_MIN_MS/maxMs*100),100)}%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.2);"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;min-width:120px;justify-content:flex-end">
+          <span style="font-size:11px;color:var(--muted)">${escapeHtml(durLabel(it.ms))}</span>
+          <span style="${pillClickable}" ${pillData} ${pillData?'title="Click to copy message"':''}>${statusBadge}</span>
+        </div>
+      </div>
+    `;
+  }).join('')||`<div class="muted">No active employees.</div>`;
+
+  document.querySelectorAll('[data-ov-profile]').forEach(bar=>{
+    bar.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();
+      state.selectedId=bar.getAttribute('data-ov-profile');state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();
+    });
+  });
+  document.querySelectorAll('[data-ov-copy-dc]').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();copyText(btn.getAttribute('data-ov-copy-dc'));});
+  });
+  document.querySelectorAll('[data-ov-copy-msg]').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();copyText(btn.getAttribute('data-ov-copy-msg'));});
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: PROFILE
+// ═══════════════════════════════════════════
+function renderProfile(){
+  const p=getPerson(state.selectedId);
+  if(!p){renderHub();return;}
+
+  state.ui.view="profile"; save();
+  $("#hubView").style.display="none";
+  $("#profileView").style.display="";
+  $("#overviewView").style.display="none";
+  document.getElementById('reviewView').style.display="none";
+  document.getElementById('mgmtCalView').style.display="none";
+  document.getElementById('templatesView').style.display="none";
+  document.getElementById('shiftPerfView').style.display="none";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+
+  const monthDate=startOfMonth(new Date(state.profileMonthCursor));
+  const monthly=computeMonthly(p.id,monthDate);
+  const activity=activityStatus(p.id);
+  const totalAll=computeTotalsAllTime(p.id);
+  const strikeCount=strikesInMonth(p.id,monthDate);
+  const vuStreak=consecutiveVuDancerCount(p.id);
+
+  let aBadge="";
+  if(activity.state==='LOA') aBadge=`<span class="pill loa">ON LOA</span>`;
+  else if(activity.state==='INACTIVE') aBadge=`<span class="pill bad">INACTIVE — 30+ days since last clock-in</span>`;
+  else if(activity.state==='PENDING') aBadge=`<span class="pill accent">Needs 1 shift · ${activity.daysLeft}d left</span>`;
+  else aBadge=`<span class="pill good">ACTIVE</span>`;
+
+  $("#profilePanel").innerHTML=`
+    <div class="profile-header">
+      <div>
+        <div class="profile-name">${escapeHtml(p.character||"(no name)")}</div>
+        <div class="profile-meta">${escapeHtml(p.rank||"No rank")} · ${escapeHtml(p.steamName||"—")}</div>
+        <div class="profile-pills">
+          ${aBadge}
+          <span class="pill">${escapeHtml(durLabel(monthly.countedMs))} this month</span>
+          <span class="pill">Total: ${escapeHtml(durLabel(totalAll))}</span>
+          <span class="pill">EOTM: ${escapeHtml(lastEotmLabel(p.id))}</span>
+          ${strikeCount>0?`<span class="pill ${strikeCount>=3?'bad':'warn'}">Strikes: ${strikeCount}</span>`:''}
+          ${vuStreak>=3?`<span class="pill bad">⚠ ${vuStreak} consecutive VU Dancer — must rotate</span>`:''}
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn-ghost btn-sm" id="addLOABtn">+ LOA</button>
+        ${activity.message?`<button class="btn-accent btn-sm" data-copy-msg="${escapeHtml(activityMsgTemplate(activity.message, p.character, activity.lastClockIn))}">Copy inactivity msg</button>`:''}
+        <button class="btn-danger btn-sm" id="deletePersonBtn">Archive</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("addLOABtn")?.addEventListener("click",()=>openLOAModal(null));
+  document.getElementById("deletePersonBtn")?.addEventListener("click",deletePerson);
+  document.querySelectorAll("button[data-copy-msg]").forEach(btn=>{
+    btn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();copyText(btn.getAttribute("data-copy-msg")||"");});
+  });
+
+  const copyIcon=`<svg viewBox="0 0 24 24" fill="none"><path d="M9 9h9v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8"/><path d="M7 13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8"/></svg>`;
+  const basicRows=[
+    {k:'Employee #',v:p.employeeNumber||'—',copy:p.employeeNumber},{k:'Rank',v:p.rank||'—'},
+    {k:'Stage Name',v:p.stageName||'—'},{k:'Discord',v:p.discord||'—'},
+    {k:'Discord ID',v:p.discordId||'—',copy:p.discordId},{k:'Steam ID',v:p.steam||'—',copy:p.steam},
+    {k:'Timezone',v:p.timeZone||'—'},{k:'Bank ID',v:p.bankAccount||'—',copy:p.bankAccount},
+    {k:'Phone',v:p.phone||'—',copy:p.phone},
+  ];
+  $("#basicInfo").innerHTML=basicRows.map(r=>`
+    <div class="info-row">
+      <div class="info-key">${escapeHtml(r.k)}</div>
+      <div class="info-val">
+        <span>${escapeHtml(r.v)}</span>
+        ${r.copy?`<button class="btn-icon" data-copy-text="${escapeHtml(r.copy)}">${copyIcon}</button>`:''}
+      </div>
+    </div>
+  `).join('');
+
+  renderTraining(p.id);
+
+  $("#pMonthLabel").textContent=fmtMonthLabel(monthDate);
+  renderCalendar(p.id);
+  $("#pCalTotal").textContent=durLabel(monthly.countedMs);
+
+  renderLOABanner(p.id);
+  renderEntries(p.id);
+  const sp=document.getElementById('strikePill');
+  if(sp) sp.textContent=`Strikes: ${strikeCount}`;
+
+  renderNotes(p.id);
+
+  document.querySelectorAll('button[data-copy-text]').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();copyText(btn.getAttribute('data-copy-text')||'');});
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: TRAINING
+// ═══════════════════════════════════════════
+function renderTraining(pid){
+  const p=getPerson(pid);
+  if(!p) return;
+  const sopDone=!!(p.training.sop?.done);
+
+  const snap=document.getElementById('trainSnap');
+  if(snap){
+    const sopCls=sopDone?'done':'todo';
+    let pills=`<span class="train-pill ${sopCls}"><span class="dot"></span>SOP</span>`;
+    pills+=FIXED_ROLES.map(role=>{
+      const r=p.training.roles[role]||{};
+      const trained=!!(r.date);
+      const cls=trained?'done':(sopDone?'todo':'locked');
+      return `<span class="train-pill ${cls}"><span class="dot"></span>${escapeHtml(role)}</span>`;
+    }).join('');
+    snap.innerHTML=pills;
+  }
+
+  const host=$("#training");
+  const trainers=managementTrainerOptions();
+  function trainerName(id){ const t=trainers.find(x=>x.id===id); return t?t.label:'—'; }
+
+  const priLabel=p.priorityRole||'None';
+  const crossLabel=(p.crossTrain||[]).length?p.crossTrain.join(', '):'None';
+
+  let detailHtml=`
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;">
+      <div><span class="muted">Priority:</span> <b>${escapeHtml(priLabel)}</b></div>
+      <div><span class="muted">Cross-train:</span> <b>${escapeHtml(crossLabel)}</b></div>
+    </div>
+  `;
+
+  detailHtml+=`<div class="train-detail">`;
+  detailHtml+=`<div class="train-detail-row" style="border-bottom:1px solid var(--line2);padding-bottom:6px;margin-bottom:2px">
+    <div class="muted" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Role</div>
+    <div class="muted" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Status</div>
+    <div class="muted" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Date</div>
+    <div class="muted" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Trainer</div>
+  </div>`;
+  detailHtml+=`<div class="train-detail-row">
+    <div><b>SOP</b></div>
+    <div>${sopDone?`<span class="pill good" style="font-size:10px">Done</span>`:`<span class="pill warn" style="font-size:10px">Not Done</span>`}</div>
+    <div class="muted">${sopDone&&p.training.sop.date?escapeHtml(fmtMDY(new Date(p.training.sop.date))):'—'}</div>
+    <div class="muted">${sopDone&&p.training.sop.trainerId?escapeHtml(trainerName(p.training.sop.trainerId)):'—'}</div>
+  </div>`;
+
+  for(const role of FIXED_ROLES){
+    const r=p.training.roles[role]||{};
+    const trained=!!(r.date);
+    const locked=!sopDone;
+    detailHtml+=`<div class="train-detail-row">
+      <div><b>${escapeHtml(role)}</b></div>
+      <div>${locked?`<span class="pill" style="font-size:10px;opacity:.5">Locked</span>`:
+        trained?`<span class="pill good" style="font-size:10px">Trained</span>`:`<span class="pill" style="font-size:10px">—</span>`}</div>
+      <div class="muted">${trained?escapeHtml(fmtMDY(new Date(r.date))):'—'}</div>
+      <div class="muted">${trained&&r.trainerId?escapeHtml(trainerName(r.trainerId)):'—'}</div>
+    </div>`;
+  }
+  detailHtml+=`</div>`;
+
+  detailHtml+=`<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px">
+    <button class="btn-ghost btn-sm" id="editTrainingBtn">Edit Training</button>
+  </div>`;
+
+  const tNotes=trainingNotesForPerson(pid);
+  detailHtml+=`<div class="divider"></div>`;
+  detailHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="muted small" style="font-weight:700;text-transform:uppercase;letter-spacing:.5px">Training Notes</div>
+    <button class="btn-ghost btn-sm" id="addTrainNoteBtn">+ Note</button>
+  </div>`;
+  detailHtml+=tNotes.map(n=>`
+    <div class="note-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="note-date">${escapeHtml(fmtMDY(new Date(n.dateISO)))}</div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-ghost btn-sm" data-edit-tnote="${escapeHtml(n.id)}">Edit</button>
+          <button class="btn-ghost btn-sm" data-del-tnote="${escapeHtml(n.id)}">Del</button>
+        </div>
+      </div>
+      <div class="note-text">${escapeHtml(n.note||'')}</div>
+    </div>
+  `).join('')||`<div class="muted small">No training notes yet.</div>`;
+
+  host.innerHTML=detailHtml;
+
+  document.getElementById('editTrainingBtn')?.addEventListener('click',()=>openTrainingModal(pid));
+  document.getElementById('addTrainNoteBtn')?.addEventListener('click',()=>openTrainingNoteModal(pid,null));
+  document.querySelectorAll('[data-edit-tnote]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const n=(state.trainingNotes||[]).find(x=>x.id===btn.getAttribute('data-edit-tnote'));
+      if(n) openTrainingNoteModal(pid,n);
+    });
+  });
+  document.querySelectorAll('[data-del-tnote]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      state.trainingNotes=(state.trainingNotes||[]).filter(x=>x.id!==btn.getAttribute('data-del-tnote'));
+      save(); renderTraining(pid);
+    });
+  });
+}
+
+function openTrainingModal(pid){
+  const p=getPerson(pid); if(!p) return;
+  const trainers=managementTrainerOptions();
+  const trOpts=(sel)=>[`<option value="">—</option>`].concat(trainers.map(t=>`<option value="${escapeHtml(t.id)}" ${t.id===sel?"selected":""}>${escapeHtml(t.label)}</option>`)).join('');
+  const sopDone=!!p.training.sop?.done;
+  const roleOpts=FIXED_ROLES.map(r=>`<option value="${escapeHtml(r)}" ${p.priorityRole===r?"selected":""}>${escapeHtml(r)}</option>`).join('');
+  const crossChecks=FIXED_ROLES.map(r=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" data-cross="${escapeHtml(r)}" ${(p.crossTrain||[]).includes(r)?'checked':''}/>${escapeHtml(r)}</label>`).join('');
+
+  let html=`
+    <div class="row"><div><div class="muted small">Priority Role</div><select id="t_pri"><option value="">—</option>${roleOpts}</select></div>
+    <div><div class="muted small">Cross-train</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${crossChecks}</div></div></div>
+    <div class="divider"></div>
+    <div class="muted small" style="font-weight:700;margin-bottom:8px">SOP</div>
+    <div class="row">
+      <div><div class="muted small">Status</div><select id="t_sop"><option value="no" ${!sopDone?'selected':''}>Not Done</option><option value="yes" ${sopDone?'selected':''}>Done</option></select></div>
+      <div><div class="muted small">Trainer</div><select id="t_sop_tr">${trOpts(p.training.sop?.trainerId||'')}</select></div>
+      <div><div class="muted small">Date</div><input type="date" id="t_sop_dt" value="${escapeHtml(dateValueFromStored(p.training.sop?.date||''))}"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="muted small" style="font-weight:700;margin-bottom:8px">Role Training</div>
+  `;
+
+  for(const role of FIXED_ROLES){
+    const r=p.training.roles[role]||{};
+    html+=`<div style="margin-bottom:10px"><div style="font-weight:700;font-size:12px;margin-bottom:4px">${escapeHtml(role)}</div>
+      <div class="row">
+        <div><div class="muted small">Trainer</div><select data-rt="${escapeHtml(role)}">${trOpts(r.trainerId||'')}</select></div>
+        <div><div class="muted small">Date</div><input type="date" data-rd="${escapeHtml(role)}" value="${escapeHtml(dateValueFromStored(r.date||''))}"></div>
+      </div></div>`;
+  }
+
+  html+=`<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-accent" id="t_save">Save</button></div>`;
+
+  openModal("Edit Training", html);
+
+  document.getElementById('t_save').addEventListener('click',()=>{
+    const oldSopDate=p.training.sop?.date||'';
+    const oldRoleDates={};
+    for(const role of FIXED_ROLES) oldRoleDates[role]=p.training.roles[role]?.date||'';
+
+    p.priorityRole=document.getElementById('t_pri').value||'';
+    p.crossTrain=FIXED_ROLES.filter(r=>{const cb=document.querySelector(`input[data-cross="${CSS.escape(r)}"]`);return cb?.checked;});
+    p.training.sop={done:document.getElementById('t_sop').value==='yes', trainerId:document.getElementById('t_sop_tr').value||'',
+      date:(document.getElementById('t_sop_dt').value||'').trim(), comment:p.training.sop?.comment||''};
+    for(const role of FIXED_ROLES){
+      const tr=document.querySelector(`select[data-rt="${CSS.escape(role)}"]`);
+      const dt=document.querySelector(`input[data-rd="${CSS.escape(role)}"]`);
+      p.training.roles[role]={trainerId:tr?.value||'',date:(dt?.value||'').trim(),comment:p.training.roles[role]?.comment||''};
+    }
+
+    state.calendarEvents||=[];
+    state.mgmtEvents||=[];
+    const newSopDate=p.training.sop.date||'';
+    if(newSopDate!==oldSopDate){
+      // Remove old SOP calendar entries for this person
+      if(oldSopDate){
+        state.calendarEvents=state.calendarEvents.filter(ce=>!(ce.personId===pid&&ce.type==='training'&&ce.note==='SOP Training'&&dateValueFromISO(ce.dateISO)===oldSopDate));
+        state.mgmtEvents=state.mgmtEvents.filter(me=>!(me.type==='training'&&me.role==='SOP'&&dateValueFromISO(me.dateISO)===oldSopDate));
+      }
+      // Add new ones if date set
+      if(newSopDate){
+        const iso=isoFromDateValue(newSopDate);
+        if(iso){
+          if(!state.calendarEvents.some(ce=>ce.personId===pid&&ce.type==='training'&&ce.note==='SOP Training'&&dateValueFromISO(ce.dateISO)===newSopDate)){
+            state.calendarEvents.push({id:uid(),personId:pid,dateISO:iso,type:'training',note:'SOP Training'});
+          }
+          if(!state.mgmtEvents.some(me=>me.type==='training'&&me.role==='SOP'&&dateValueFromISO(me.dateISO)===newSopDate)){
+            state.mgmtEvents.push({id:uid(),dateISO:iso,type:'training',role:'SOP',ledBy:'',attendees:[],note:''});
+          }
+        }
+      }
+    }
+    for(const role of FIXED_ROLES){
+      const newDate=p.training.roles[role]?.date||'';
+      if(newDate!==oldRoleDates[role]){
+        // Remove old role calendar entries
+        if(oldRoleDates[role]){
+          state.calendarEvents=state.calendarEvents.filter(ce=>!(ce.personId===pid&&ce.type==='training'&&ce.note===`${role} Training`&&dateValueFromISO(ce.dateISO)===oldRoleDates[role]));
+          state.mgmtEvents=state.mgmtEvents.filter(me=>!(me.type==='training'&&me.role===role&&dateValueFromISO(me.dateISO)===oldRoleDates[role]));
+        }
+        // Add new if date set
+        if(newDate){
+          const iso=isoFromDateValue(newDate);
+          if(iso){
+            if(!state.calendarEvents.some(ce=>ce.personId===pid&&ce.type==='training'&&ce.note===`${role} Training`&&dateValueFromISO(ce.dateISO)===newDate)){
+              state.calendarEvents.push({id:uid(),personId:pid,dateISO:iso,type:'training',note:`${role} Training`});
+            }
+            if(!state.mgmtEvents.some(me=>me.type==='training'&&me.role===role&&dateValueFromISO(me.dateISO)===newDate)){
+              state.mgmtEvents.push({id:uid(),dateISO:iso,type:'training',role,ledBy:'',attendees:[],note:''});
+            }
+          }
+        }
+      }
+    }
+
+    save();closeModal();renderProfile();toast("Training saved");
+  });
+}
+
+function openTrainingNoteModal(pid, existing){
+  const title=existing?"Edit Training Note":"Add Training Note";
+  const dateVal=existing?dateValueFromISO(existing.dateISO):dateValueFromISO(new Date().toISOString());
+  openModal(title,`
+    <div class="row"><div><div class="muted small">Date</div><input type="date" id="tn_date" value="${escapeHtml(dateVal)}"/></div></div>
+    <div style="margin-top:8px"><div class="muted small">Note</div><textarea id="tn_text" rows="4" placeholder="Training notes...">${escapeHtml(existing?.note||'')}</textarea></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-accent" id="tn_save">Save</button></div>
+  `);
+  document.getElementById('tn_save').addEventListener('click',()=>{
+    const ds=(document.getElementById('tn_date').value||'').trim();
+    if(!ds) return alert('Pick a date.');
+    const text=(document.getElementById('tn_text').value||'').trim();
+    if(!text) return alert('Note cannot be empty.');
+    if(existing){existing.dateISO=isoFromDateValue(ds);existing.note=text;}
+    else{state.trainingNotes||=[];state.trainingNotes.push({id:uid(),personId:pid,dateISO:isoFromDateValue(ds),note:text});}
+    save();closeModal();renderProfile();
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: CALENDAR
+// ═══════════════════════════════════════════
+function renderCalendar(pid){
+  const month=startOfMonth(new Date(state.profileMonthCursor));
+  const year=month.getFullYear(), mIdx=month.getMonth();
+  const monthly=computeMonthly(pid,month);
+  const loas=loasForPerson(pid);
+  const calEvents=calEventsForPerson(pid);
+
+  const loaDays=new Set();
+  for(const l of loas){
+    const s=new Date(l.startISO),e=new Date(l.endISO),cur=new Date(s);cur.setHours(0,0,0,0);
+    while(cur<=e){ if(cur.getFullYear()===year&&cur.getMonth()===mIdx){ loaDays.add(`${year}-${String(mIdx+1).padStart(2,"0")}-${String(cur.getDate()).padStart(2,"0")}`); } cur.setDate(cur.getDate()+1); }
+  }
+
+  const calEventDays=new Map();
+  for(const ce of calEvents){
+    const dk=dateValueFromISO(ce.dateISO);
+    if(!dk) continue;
+    const [cy,cm]=dk.split('-').map(Number);
+    if(cy===year&&cm===mIdx+1){
+      const arr=calEventDays.get(dk)||[];
+      arr.push(ce);
+      calEventDays.set(dk,arr);
+    }
+  }
+
+  const firstDay=new Date(year,mIdx,1);
+  const startWeekday=firstDay.getDay();
+  const daysInMonth=new Date(year,mIdx+1,0).getDate();
+  const dayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  let html=`<div class="cal-grid">`;
+  for(const n of dayNames) html+=`<div class="cal-head">${n}</div>`;
+  for(let i=0;i<startWeekday;i++) html+=`<div></div>`;
+
+  for(let day=1;day<=daysInMonth;day++){
+    const key=`${year}-${String(mIdx+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const info=monthly.byDay.get(key);
+    const onLOA=loaDays.has(key);
+    const dayEvents=calEventDays.get(key)||[];
+    const shiftTag=shiftTagForDay(pid,key);
+
+    let cls="cal-day", label="", clickable=false;
+    if(onLOA){cls+=" loa";label="LOA";clickable=true;}
+    if(info&&info.countedMs>0){
+      cls=cls.replace(/\bloa\b/g,"")+" good";
+      label=durLabel(info.countedMs);
+      clickable=true;
+    }
+    if(dayEvents.length) clickable=true;
+
+    let tags="";
+    for(const ce of dayEvents){
+      if(ce.venueType){
+        const vColor=ce.cancelled?'#e05555':venueTypeColor(ce.venueType);
+        const vLabel=ce.venueTitle||venueTypeLabel(ce.venueType);
+        const cStyle=ce.cancelled?'background:#e05555;color:#080808;border-color:#e05555;':'';
+        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:${vColor};border:1.5px solid ${vColor};display:block;width:fit-content;margin-top:3px;white-space:nowrap;${cStyle}" title="${escapeHtml(vLabel)}">${escapeHtml(vLabel)}${ce.cancelled?' ✕':''}</span>`;
+      } else if(ce.type==='training'){
+        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;display:block;width:fit-content;margin-top:3px">${escapeHtml(ce.trainedFor||'Training')}</span>`;
+      } else if(ce.type==='interview'){
+        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:#cc7a6a;border:1.5px solid #cc7a6a;display:block;width:fit-content;margin-top:3px">Interview</span>`;
+      }
+    }
+
+    html+=`<div class="${cls}" data-day="${key}" style="cursor:${clickable?'pointer':'default'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="day-num">${day}</div>
+        ${label?`<div style="font-size:11px;font-weight:700;color:var(--muted)">${escapeHtml(label)}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;margin-top:auto">${tags}</div>
+    </div>`;
+  }
+  html+=`</div>`;
+  html+=buildLegend(true);
+  $("#calendar").innerHTML=html;
+
+  $("#calendar").querySelectorAll("[data-day]").forEach(el=>{
+    el.addEventListener("click",e=>{
+      const dayKey=el.getAttribute("data-day");
+      const info=monthly.byDay.get(dayKey);
+      const loaInfo=loas.find(l=>{const d=new Date(dayKey+"T12:00:00"),s=new Date(l.startISO),e2=new Date(l.endISO);return s<=d&&d<=e2;});
+      const dayEvts=(calEventDays.get(dayKey)||[]);
+      const st=shiftTagForDay(pid,dayKey);
+      if(!info&&!loaInfo&&!dayEvts.length) return;
+      openModal("Day Details",buildDayDetailHtml(dayKey,info,loaInfo,dayEvts,st));
+      wireProfileLinks();
+      // Wire edit/delete for calendar events in day detail
+      document.querySelectorAll('[data-edit-cal]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const ce=(state.calendarEvents||[]).find(x=>x.id===btn.getAttribute('data-edit-cal'));
+          if(ce){closeModal();openCalEventModal(ce);}
+        });
+      });
+      document.querySelectorAll('[data-del-cal]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          state.calendarEvents=(state.calendarEvents||[]).filter(x=>x.id!==btn.getAttribute('data-del-cal'));
+          save();closeModal();renderProfile();
+        });
+      });
+    });
+  });
+
+  return monthly;
+}
+
+function buildDayDetailHtml(dayKey,info,loa,calEvts=[],shiftTag=null){
+  const dateObj=new Date(dayKey+"T00:00:00");
+  const pretty=new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(dateObj);
+  let html=`<div style="font-weight:900;font-size:16px;margin-bottom:10px">${escapeHtml(pretty)}</div>`;
+
+  if(loa){
+    html+=`<div class="pill loa" style="margin-bottom:6px">LOA — ${escapeHtml(loa.reason||"")}</div>
+      <div class="muted small">${escapeHtml(fmtMDY(loa.startISO))} → ${escapeHtml(fmtMDY(loa.endISO))}</div>`;
+  }
+
+  if(info&&info.segments.length){
+    html+=`<div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap">
+      <span class="pill good">Shift: ${escapeHtml(durLabel(info.countedMs))}</span>
+    </div>`;
+    for(const s of info.segments){
+      html+=`<div style="padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--good-dim);font-size:12px">
+        <div><b>IN:</b> ${escapeHtml(formatLocal(s.in))} → <b>OUT:</b> ${escapeHtml(formatLocal(s.out))}</div>
+        <div style="margin-top:4px"><span class="pill good" style="font-size:10px">${escapeHtml(durLabel(s.ms))}</span></div>
+      </div>`;
+    }
+  }
+
+  if(calEvts.length){
+    const typeLabels={training:'Training',interview:'Interview',vu_dancer:'VU Dancer',away_dancer:'Away Dancer',meeting:'Meeting',event:'Opening',other:'Other'};
+    const typeColors={training:'#6ec0cc',interview:'#cc7a6a',event:'#c864a0',other:'var(--muted)'};
+    html+=`<div style="font-weight:700;font-size:12px;margin:10px 0 6px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Events</div>`;
+    for(const ce of calEvts){
+      const evColor=ce.venueType?venueTypeColor(ce.venueType):(typeColors[ce.type]||typeColors.other);
+      const evLabel=ce.venueType?venueTypeLabel(ce.venueType):(typeLabels[ce.type]||ce.type);
+      const isSynced=!!ce.mgmtSourceId;
+      html+=`<div style="padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+          <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+            <span class="pill" style="font-size:10px;border-color:${evColor}">${escapeHtml(evLabel)}</span>
+            ${ce.venueTitle?`<span style="font-weight:700">${escapeHtml(ce.venueTitle)}</span>`:''}
+            ${ce.shiftRole?`<span class="muted">· ${escapeHtml(ce.shiftRole)}</span>`:''}
+          </div>
+          ${!isSynced?`<div style="display:flex;gap:4px">
+            <button class="btn-ghost btn-sm" data-edit-cal="${escapeHtml(ce.id)}">Edit</button>
+            <button class="btn-ghost btn-sm" data-del-cal="${escapeHtml(ce.id)}">Del</button>
+          </div>`:''}
+        </div>
+        ${ce.positives?`<div style="margin-top:4px;color:var(--good)"><span style="font-size:10px;font-weight:700">POSITIVE:</span> ${escapeHtml(ce.positives)}</div>`:''}
+        ${ce.improvements?`<div style="margin-top:2px;color:var(--warn)"><span style="font-size:10px;font-weight:700">IMPROVE:</span> ${escapeHtml(ce.improvements)}</div>`:''}
+        ${ce.trainedFor?`<div style="margin-top:4px"><span class="muted">Trained for:</span> ${escapeHtml(ce.trainedFor)}</div>`:''}
+        ${ce.note&&!ce.positives&&!ce.improvements?`<div style="margin-top:4px">${escapeHtml(ce.note)}</div>`:''}
+      </div>`;
+    }
+  }
+
+  return html;
+}
+
+// ═══════════════════════════════════════════
+// RENDER: LOA BANNER
+// ═══════════════════════════════════════════
+function renderLOABanner(pid){
+  const banner=document.getElementById('loaBanner');
+  if(!banner) return;
+  const loas=loasForPerson(pid);
+  if(!loas.length){banner.style.display='none';return;}
+  banner.style.display='';
+  banner.innerHTML=loas.map(l=>`
+    <div class="pill loa" style="margin-bottom:4px;display:flex;align-items:center;gap:8px;border-radius:var(--r)">
+      <span>LOA: ${escapeHtml(fmtMDY(l.startISO))} → ${escapeHtml(fmtMDY(l.endISO))}</span>
+      ${l.reason?`<span class="muted small">· ${escapeHtml(l.reason)}</span>`:''}
+      <button class="btn-ghost btn-sm" data-edit-loa="${escapeHtml(l.id)}" style="margin-left:auto">Edit</button>
+      <button class="btn-ghost btn-sm" data-del-loa="${escapeHtml(l.id)}">Del</button>
+    </div>
+  `).join('');
+  banner.querySelectorAll('[data-edit-loa]').forEach(btn=>btn.addEventListener('click',()=>openLOAModal(btn.getAttribute('data-edit-loa'))));
+  banner.querySelectorAll('[data-del-loa]').forEach(btn=>btn.addEventListener('click',()=>{
+    state.loas=state.loas.filter(x=>x.id!==btn.getAttribute('data-del-loa'));
+    save();renderProfile();
+  }));
+}
+
+// ═══════════════════════════════════════════
+// RENDER: ENTRIES
+// ═══════════════════════════════════════════
+function renderEntries(pid){
+  const host=document.getElementById('discipline');
+  const ents=entriesForPerson(pid);
+
+  const kindColors={Strike:'bad',Warning:'warn',Suspension:'bad','Verbal Discussion':'accent',Positive:'good',Improvement:'warn'};
+  host.innerHTML=ents.map(e=>{
+    const isSynced=!!e.mgmtSourceId;
+    return `<div class="entry-card">
+      <div class="entry-left">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="pill ${kindColors[normalizeKind(e.kind)]||''}" style="font-size:10px">${escapeHtml(normalizeKind(e.kind))}</span>
+          <span class="entry-date">${escapeHtml(fmtMDY(new Date(e.dateISO)))}</span>
+          ${e.source?`<span class="muted" style="font-size:10px">${escapeHtml(e.source)}</span>`:''}
+        </div>
+        <div class="entry-note">${escapeHtml(e.note||'')}</div>
+      </div>
+      <div class="entry-actions">
+        ${!isSynced?`<button class="btn-ghost btn-sm" data-edit-entry="${escapeHtml(e.id)}">Edit</button>`:''}
+        ${!isSynced?`<button class="btn-ghost btn-sm" data-del-entry="${escapeHtml(e.id)}">Del</button>`:''}
+      </div>
+    </div>`;
+  }).join('')||`<div class="muted small">No entries yet.</div>`;
+  host.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>addEntry(btn.getAttribute('data-edit-entry'))));
+  host.querySelectorAll('[data-del-entry]').forEach(btn=>btn.addEventListener('click',()=>{
+    state.entries=state.entries.filter(x=>x.id!==btn.getAttribute('data-del-entry'));
+    save();renderProfile();
+  }));
+}
+
+// ═══════════════════════════════════════════
+// RENDER: NOTES
+// ═══════════════════════════════════════════
+function renderNotes(pid){
+  const host=document.getElementById('notesList');
+  const notes=notesForPerson(pid);
+  host.innerHTML=notes.map(n=>`
+    <div class="note-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="note-date">${escapeHtml(fmtMDY(new Date(n.dateISO)))}</div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-ghost btn-sm" data-edit-note="${escapeHtml(n.id)}">Edit</button>
+          <button class="btn-ghost btn-sm" data-del-note="${escapeHtml(n.id)}">Del</button>
+        </div>
+      </div>
+      <div class="note-text">${escapeHtml(n.note||'')}</div>
+    </div>
+  `).join('')||`<div class="muted small">No notes yet.</div>`;
+  host.querySelectorAll('[data-del-note]').forEach(btn=>{btn.addEventListener('click',()=>{state.notesEntries=state.notesEntries.filter(x=>x.id!==btn.getAttribute('data-del-note'));save();renderNotes(pid);});});
+  host.querySelectorAll('[data-edit-note]').forEach(btn=>{btn.addEventListener('click',()=>{
+    const n=state.notesEntries.find(x=>x.id===btn.getAttribute('data-edit-note'));
+    if(n) openNoteModal(n);
+  });});
+}
+
+// ═══════════════════════════════════════════
+// RENDER: REVIEW PAGE
+// ═══════════════════════════════════════════
+function leadershipScore(pid, monthDate){
+  const f=startOfMonth(monthDate),t=endOfMonth(monthDate);
+  const mgmtEvts=(state.mgmtEvents||[]).filter(me=>{const d=new Date(me.dateISO);return d>=f&&d<t;});
+  let score=0;
+  for(const me of mgmtEvts){
+    if(me.ledBy===pid) score+=3;
+    if((me.attendedBy||[]).includes(pid)) score+=2;
+    // Legacy
+    if((me.taggedSupers||[]).includes(pid)) score+=2;
+    if((me.taggedSeniors||[]).includes(pid)) score+=2;
+  }
+  return score;
+}
+
+function eotmScore(x){
+  const hoursScore=Math.round(x.monthly.countedMs/(1000*60*60));
+  const posBoost=(x.counts.positives||0)*3;
+  const impPenalty=(x.counts.improvements||0)*5;
+  return hoursScore+posBoost-impPenalty;
+}
+
+function promoScore(x, monthDate){
+  let score=eotmScore(x);
+  const rankIdx=RANKS.indexOf(x.p.rank);
+  if(rankIdx>=2) score+=leadershipScore(x.p.id, monthDate);
+  return score;
+}
+
+function isDisqualified(x){
+  return x.counts.strikes>0||x.counts.suspensions>0;
+}
+
+function renderReviewPage(){
+  state.ui.view="review"; save();
+  $("#hubView").style.display="none";
+  $("#profileView").style.display="none";
+  $("#overviewView").style.display="none";
+  document.getElementById('reviewView').style.display="";
+  document.getElementById('mgmtCalView').style.display="none";
+  document.getElementById('templatesView').style.display="none";
+  document.getElementById('shiftPerfView').style.display="none";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+
+  const monthDate=startOfMonth(new Date(state.monthCursor));
+  const sub=document.getElementById('reviewSub');
+  if(sub) sub.textContent=`Reviewing ${fmtMonthLabel(monthDate)}`;
+
+  const allStaff=state.people.filter(p=>!p.archived).map(p=>{ensurePerson(p);const m=computeMonthly(p.id,monthDate);const c=monthContextCounts(p.id,monthDate);
+    return {p,monthly:m,isMgmt:isMgmtRank(p.rank),counts:c,loaNow:isOnLOA(p.id,monthDate)};});
+
+  const tab=state.ui.reviewTab||"eotm";
+  const tabE=document.getElementById('reviewTabEotm'),tabP=document.getElementById('reviewTabPromo');
+  if(tabE) tabE.className=`btn-${tab==='eotm'?'accent':'ghost'} btn-sm`;
+  if(tabP) tabP.className=`btn-${tab==='promo'?'accent':'ghost'} btn-sm`;
+
+  const eotm=allStaff.filter(x=>!x.isMgmt && x.p.rank && !isDisqualified(x) && x.monthly.countedMs>=MONTHLY_MIN_MS)
+    .map(x=>({...x,score:eotmScore(x)})).sort((a,b)=>b.score-a.score).slice(0,10);
+  const promos=allStaff.filter(x=>x.monthly.countedMs>=MONTHLY_MIN_MS && !isDisqualified(x) && x.p.rank)
+    .map(x=>({...x,score:promoScore(x,monthDate)})).sort((a,b)=>b.score-a.score);
+
+  function card(x,showMark=false,showPromote=false){
+    const lastE=lastEotmLabel(x.p.id);
+    const currentRankIdx=RANKS.indexOf(x.p.rank);
+    const nextRank=(currentRankIdx>=0 && currentRankIdx<RANKS.length-1)?RANKS[currentRankIdx+1]:null;
+    const canPromote=showPromote && nextRank;
+    return `<div style="padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;background:var(--panel)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div><div style="font-weight:900">${escapeHtml(x.p.character||'')}</div>
+          <div class="muted small">${escapeHtml(x.p.rank||'—')}${canPromote?` → <span style="color:var(--gold-hi)">${escapeHtml(nextRank)}</span>`:''}</div></div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          ${x.loaNow?'<span class="pill loa">LOA</span>':''}
+          <span class="pill good">${escapeHtml(durLabel(x.monthly.countedMs))}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);flex-wrap:wrap">
+        <span style="color:var(--good)">Positives: <b>${x.counts.positives||0}</b></span>
+        <span style="color:var(--warn)">Improve: <b>${x.counts.improvements||0}</b></span>
+        <span>Strikes: <b>${x.counts.strikes}</b></span>
+        <span>Warnings: <b>${x.counts.warnings}</b></span>
+        <span>Last EOTM: <b>${escapeHtml(lastE)}</b></span>
+        ${x.score!==undefined?`<span style="color:var(--accent)">Score: <b>${x.score}</b></span>`:''}
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px">
+        <button class="btn-ghost btn-sm" data-review-profile="${escapeHtml(x.p.id)}">View Profile</button>
+        ${showMark?`<button class="btn-accent btn-sm" data-mark-eotm="${escapeHtml(x.p.id)}">Mark EOTM</button>`:''}
+        ${canPromote?`<button class="btn-accent btn-sm" data-promote="${escapeHtml(x.p.id)}" data-promote-to="${escapeHtml(nextRank)}">Promote to ${escapeHtml(nextRank)}</button>`:''}
+      </div>
+    </div>`;
+  }
+
+  let html='';
+  if(tab==='eotm'){
+    html+=`<div class="hint" style="margin-bottom:10px"><b>Top 10</b> by performance score (hours + positives - improvements). Strikes/suspensions disqualify. Management excluded.</div>`;
+    html+=eotm.length?eotm.map(x=>card(x,true,false)).join(''):`<div class="muted">No candidates yet.</div>`;
+  } else {
+    html+=`<div class="hint" style="margin-bottom:10px"><b>Eligible</b> for promotion — met shift minimum, no strikes/suspensions. Senior+ scored with leadership activity boost.</div>`;
+    html+=promos.length?promos.map(x=>card(x,false,true)).join(''):`<div class="muted">No one meets the baseline yet.</div>`;
+  }
+
+  $("#reviewBody").innerHTML=html;
+  document.querySelectorAll('[data-review-profile]').forEach(btn=>{btn.addEventListener('click',()=>{state.selectedId=btn.getAttribute('data-review-profile');state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();});});
+  document.querySelectorAll('[data-mark-eotm]').forEach(btn=>{btn.addEventListener('click',()=>markEotm(btn.getAttribute('data-mark-eotm'),monthDate));});
+  document.querySelectorAll('[data-promote]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const pid=btn.getAttribute('data-promote');
+      const newRank=btn.getAttribute('data-promote-to');
+      const p=getPerson(pid);
+      if(!p||!newRank) return;
+      const oldRank=p.rank||'—';
+      p.rank=newRank;
+      // Log promotion as a commendation entry
+      state.entries.push({id:uid(),personId:pid,dateISO:new Date().toISOString(),kind:'Verbal Discussion',note:`Promoted from ${oldRank} to ${newRank}`});
+      save();toast(`Promoted to ${newRank}`);renderReviewPage();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════
+// ACTIONS / MODALS
+// ═══════════════════════════════════════════
+function addPerson(){
+  openModal("Add Person",`
+    <div class="hint" style="margin-bottom:10px"><b>Steam is the permanent ID.</b> Character name is the display name.</div>
+    <div class="row"><div><div class="muted small">Steam ID</div><input id="f_steam" placeholder="steam:11000010abcd123"/></div>
+    <div><div class="muted small">Steam Name</div><input id="f_steamName" placeholder="Steam display name"/></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Character</div><input id="f_character" placeholder="Character name"/></div>
+    <div></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Rank</div><select id="f_rank"><option value="">—</option>${RANKS.map(r=>`<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('')}</select></div><div></div></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-accent" id="f_save">Save</button></div>
+  `);
+  $("#f_save").addEventListener("click",()=>{
+    const steam=($("#f_steam").value||'').trim(),character=($("#f_character").value||'').trim();
+    if(!steam&&!character) return alert("Need Steam ID or Character name.");
+    if(steam&&state.people.some(p=>(p.steam||'').trim()===steam)) return alert("Steam ID exists.");
+    const p={id:uid(),steam,steamName:($("#f_steamName").value||'').trim(),character,callsign:'',
+      rank:$("#f_rank").value||'',discord:'',discordId:'',timeZone:'',bankAccount:'',
+      training:{sop:{done:false,trainerId:'',date:'',comment:''},roles:{}},priorityRole:'',crossTrain:[],notes:''};
+    ensurePerson(p);state.people.push(p);save();closeModal();renderHub();
+  });
+}
+
+function editBasics(){
+  const p=getPerson(state.selectedId); if(!p) return;
+  openModal("Edit Info",`
+    <div class="row"><div><div class="muted small">Employee #</div><input id="e_empNum" value="${escapeHtml(p.employeeNumber||'')}"></div>
+    <div><div class="muted small">Character</div><input id="e_character" value="${escapeHtml(p.character||'')}"></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Stage Name</div><input id="e_stageName" value="${escapeHtml(p.stageName||'')}"></div>
+    <div><div class="muted small">Rank</div><select id="e_rank"><option value="">—</option>${RANKS.map(r=>`<option value="${escapeHtml(r)}" ${p.rank===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Discord</div><input id="e_discord" value="${escapeHtml(p.discord||'')}" placeholder="@name"></div>
+    <div><div class="muted small">Discord ID</div><input id="e_discordId" value="${escapeHtml(p.discordId||'')}"></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Timezone</div><input id="e_tz" value="${escapeHtml(p.timeZone||'')}"></div>
+    <div><div class="muted small">Bank ID</div><input id="e_bank" value="${escapeHtml(p.bankAccount||'')}"></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Phone #</div><input id="e_phone" value="${escapeHtml(p.phone||'')}"></div>
+    <div></div></div>
+    <div class="hint" style="margin-top:10px">Steam fields update from CSV import only.</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-accent" id="e_save">Save</button></div>
+  `);
+  $("#e_save").addEventListener("click",()=>{
+    p.employeeNumber=($("#e_empNum").value||'').trim();
+    p.character=($("#e_character").value||'').trim(); p.rank=$("#e_rank").value||'';
+    p.stageName=($("#e_stageName").value||'').trim();
+    p.discord=($("#e_discord").value||'').trim(); p.discordId=($("#e_discordId").value||'').trim();
+    p.timeZone=($("#e_tz").value||'').trim(); p.bankAccount=($("#e_bank").value||'').trim();
+    p.phone=($("#e_phone").value||'').trim();
+    save();closeModal();renderProfile();
+  });
+}
+
+function deletePerson(){
+  const p=getPerson(state.selectedId); if(!p) return;
+  const btn=document.getElementById('deletePersonBtn'); if(!btn) return;
+  if(btn.dataset.confirming==='true'){
+    p.archived=true; state.selectedId=null; save(); renderHub();
+  } else {
+    btn.dataset.confirming='true';
+    btn.textContent='Click again to confirm';
+    btn.className='btn-danger btn-sm';
+    setTimeout(()=>{
+      if(btn){btn.dataset.confirming='';btn.textContent='Archive';btn.className='btn-danger btn-sm';}
+    },3000);
+  }
+}
+
+function addEntry(existingId=null){
+  const p=getPerson(state.selectedId); if(!p) return;
+  const existing=existingId?state.entries.find(e=>e.id===existingId):null;
+  const dv=existing?dateValueFromISO(existing.dateISO):dateValueFromISO(new Date().toISOString());
+  openModal(existing?'Edit Entry':'Add Entry',`
+    <div class="row"><div><div class="muted small">Date</div><input id="en_date" type="date" value="${escapeHtml(dv)}"></div>
+    <div><div class="muted small">Type</div><select id="en_kind">
+      <option value="Positive" ${existing&&normalizeKind(existing.kind)==='Positive'?'selected':''}>Positive</option>
+      <option value="Strike" ${existing&&normalizeKind(existing.kind)==='Strike'?'selected':''}>Strike</option>
+      <option value="Warning" ${existing&&normalizeKind(existing.kind)==='Warning'?'selected':''}>Warning</option>
+      <option value="Suspension" ${existing&&normalizeKind(existing.kind)==='Suspension'?'selected':''}>Suspension</option>
+      <option value="Verbal Discussion" ${existing&&normalizeKind(existing.kind)==='Verbal Discussion'?'selected':''}>Verbal Discussion</option>
+    </select></div></div>
+    <div style="margin-top:8px"><div class="muted small">Details</div><textarea id="en_note" placeholder="Notes...">${existing?escapeHtml(existing.note||''):''}</textarea></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-accent" id="en_save">Save</button></div>
+  `);
+  document.getElementById('en_save').addEventListener('click',()=>{
+    const ds=(document.getElementById('en_date').value||'').trim();
+    const iso=isoFromDateValue(ds); if(!iso) return alert('Pick a date.');
+    const kind=document.getElementById('en_kind').value;
+    const note=(document.getElementById('en_note').value||'').trim();
+    if(existing){existing.dateISO=iso;existing.kind=kind;existing.note=note;}
+    else{state.entries.push({id:uid(),personId:p.id,dateISO:iso,kind,note});}
+    save();closeModal();renderProfile();
+  });
+}
+
+function openLOAModal(existingId=null){
+  const p=getPerson(state.selectedId); if(!p) return;
+  const existing=existingId?state.loas.find(x=>x.id===existingId):null;
+  const today=new Date();
+  const ds=existing?dateValueFromISO(existing.startISO):dateValueFromISO(today.toISOString());
+  const de=existing?dateValueFromISO(existing.endISO):dateValueFromISO(new Date(today.getFullYear(),today.getMonth(),today.getDate()+7).toISOString());
+  openModal(existing?"Edit LOA":"Add LOA",`
+    <div class="hint" style="margin-bottom:10px">LOA pauses activity requirements. Hours still count if they clock in.</div>
+    <div class="row"><div><div class="muted small">Start</div><input id="loa_start" type="date" value="${escapeHtml(ds)}"></div>
+    <div><div class="muted small">End</div><input id="loa_end" type="date" value="${escapeHtml(de)}"></div></div>
+    <div style="margin-top:8px"><div class="muted small">Reason</div><input id="loa_reason" placeholder="Vacation / medical / break" value="${escapeHtml(existing?.reason||'')}"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-accent" id="loa_save">${existing?'Save Changes':'Add LOA'}</button></div>
+  `);
+  document.getElementById('loa_save').addEventListener('click',()=>{
+    const s=(document.getElementById('loa_start').value||'').trim(),e=(document.getElementById('loa_end').value||'').trim();
+    if(!s||!e) return alert('Need both dates.'); const sISO=dateInputToISOStart(s),eISO=dateInputToISOEnd(e);
+    if(new Date(eISO)<new Date(sISO)) return alert('End must be after start.');
+    const reason=(document.getElementById('loa_reason').value||'').trim();
+    if(existing){existing.startISO=sISO;existing.endISO=eISO;existing.reason=reason;}
+    else{state.loas.push({id:uid(),personId:p.id,startISO:sISO,endISO:eISO,reason});}
+    save();closeModal();renderProfile();
+  });
+}
+
+function openNoteModal(existing){
+  const p=getPerson(state.selectedId); if(!p) return;
+  const dv=existing?dateValueFromISO(existing.dateISO):dateValueFromISO(new Date().toISOString());
+  openModal(existing?"Edit Note":"Add Note",`
+    <div class="row"><div><div class="muted small">Date</div><input type="date" id="note_date" value="${escapeHtml(dv)}"/></div></div>
+    <div style="margin-top:8px"><div class="muted small">Note</div><textarea id="note_text" rows="5" placeholder="Write your note...">${escapeHtml(existing?.note||'')}</textarea></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-accent" id="note_save">Save</button></div>
+  `);
+  document.getElementById('note_save').addEventListener('click',()=>{
+    const ds=(document.getElementById('note_date').value||'').trim(); if(!ds) return alert('Pick a date.');
+    const text=(document.getElementById('note_text').value||'').trim(); if(!text) return alert('Cannot be empty.');
+    if(existing){existing.dateISO=isoFromDateValue(ds);existing.note=text;}
+    else{state.notesEntries.push({id:uid(),personId:state.selectedId,dateISO:isoFromDateValue(ds),note:text});}
+    save();closeModal();renderProfile();
+  });
+}
+
+function openCalEventModal(existing){
+  const p=getPerson(state.selectedId); if(!p) return;
+  const isEdit=!!existing;
+  const dateVal=isEdit?dateValueFromISO(existing.dateISO):dateValueFromISO(new Date().toISOString());
+  const typeVal=isEdit?existing.type:'training';
+  const noteVal=isEdit?existing.note||'':'';
+  const typeOpts=['training','interview','meeting','event','other'];
+  openModal(isEdit?"Edit Calendar Event":"Add Calendar Event",`
+    <div class="row">
+      <div><div class="muted small">Date</div><input type="date" id="ce_date" value="${escapeHtml(dateVal)}"/></div>
+      <div><div class="muted small">Type</div><select id="ce_type">
+        ${typeOpts.map(t=>`<option value="${t}" ${t===typeVal?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}
+      </select></div>
+    </div>
+    <div style="margin-top:8px"><div class="muted small">Note</div><textarea id="ce_note" rows="3" placeholder="Details...">${escapeHtml(noteVal)}</textarea></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-accent" id="ce_save">Save</button></div>
+  `);
+  document.getElementById('ce_save').addEventListener('click',()=>{
+    const ds=(document.getElementById('ce_date').value||'').trim(); if(!ds) return alert('Pick a date.');
+    const type=document.getElementById('ce_type').value;
+    const note=(document.getElementById('ce_note').value||'').trim();
+    if(isEdit){
+      existing.dateISO=isoFromDateValue(ds); existing.type=type; existing.note=note;
+    } else {
+      state.calendarEvents||=[];
+      state.calendarEvents.push({id:uid(),personId:state.selectedId,dateISO:isoFromDateValue(ds),type,note});
+    }
+    save();closeModal();renderProfile();
+  });
+}
+
+function openShiftRoleModal(pid, dateKey){
+  const existing=shiftTagForDay(pid,dateKey);
+  const dateObj=new Date(dateKey+"T00:00:00");
+  const pretty=new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(dateObj);
+  const streak=consecutiveVuDancerCount(pid);
+
+  const opts=[`<option value="">— Clear / Not set —</option>`].concat(
+    SHIFT_ROLES.map(r=>`<option value="${escapeHtml(r)}" ${existing&&existing.role===r?'selected':''}>${escapeHtml(r)}</option>`)
+  ).join('');
+
+  openModal(`Shift Role — ${pretty}`,`
+    <div class="muted small" style="margin-bottom:10px">What role did this person work during this shift?</div>
+    <select id="sr_role" style="width:100%">${opts}</select>
+    ${streak>=3?`<div class="hint" style="margin-top:10px">⚠ This person has <b>${streak}</b> consecutive VU Dancer shifts. Consider rotating to another role.</div>`:''}
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:12px">
+      <button class="btn-ghost btn-sm" id="sr_cancel">Cancel</button>
+      <button class="btn-accent" id="sr_save">Save</button>
+    </div>
+  `);
+  document.getElementById('sr_cancel').addEventListener('click',closeModal);
+  document.getElementById('sr_save').addEventListener('click',()=>{
+    const role=document.getElementById('sr_role').value;
+    setShiftTag(pid,dateKey,role);
+    save(); closeModal(); renderProfile(); toast("Role saved");
+  });
+}
+
+function resetAll(){
+  if(!confirm("Reset EVERYTHING? This wipes all data.")) return;
+  if(!confirm("Are you SURE? This cannot be undone.")) return;
+  state=seed();
+  try{localStorage.removeItem(STORE_KEY);}catch{}
+  save(); renderHub();
+}
+
+// ═══════════════════════════════════════════
+// RENDER: MANAGEMENT CALENDAR
+// ═══════════════════════════════════════════
+function hideAllViews(){
+  $("#hubView").style.display="none";
+  $("#profileView").style.display="none";
+  $("#overviewView").style.display="none";
+  document.getElementById('reviewView').style.display="none";
+  document.getElementById('mgmtCalView').style.display="none";
+  document.getElementById('templatesView').style.display="none";
+  document.getElementById('shiftPerfView').style.display="none";
+  document.getElementById('blacklistView').style.display="none";
+}
+
+function renderMgmtCal(){
+  hideAllViews();
+  document.getElementById('mgmtCalView').style.display="";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+  state.ui.view="mgmtcal"; save();
+
+  const md=startOfMonth(new Date(state.mgmtMonthCursor));
+  $("#mcMonthLabel").textContent=fmtMonthLabel(md);
+  const year=md.getFullYear(), mIdx=md.getMonth();
+
+  const mgmtByDay=new Map();
+  for(const me of (state.mgmtEvents||[])){
+    const dk=dateValueFromISO(me.dateISO);
+    if(!dk) continue;
+    const [cy,cm]=dk.split('-').map(Number);
+    if(cy===year&&cm===mIdx+1){
+      const arr=mgmtByDay.get(dk)||[];
+      arr.push(me);
+      mgmtByDay.set(dk,arr);
+    }
+  }
+
+  const firstDay=new Date(year,mIdx,1);
+  const startWeekday=firstDay.getDay();
+  const daysInMonth=new Date(year,mIdx+1,0).getDate();
+  const dayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  let html=`<div class="cal-grid">`;
+  for(const n of dayNames) html+=`<div class="cal-head">${n}</div>`;
+  for(let i=0;i<startWeekday;i++) html+=`<div></div>`;
+
+  for(let day=1;day<=daysInMonth;day++){
+    const key=`${year}-${String(mIdx+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const dayEvents=mgmtByDay.get(key)||[];
+    const clickable=dayEvents.length>0;
+
+    let tags="";
+    for(const me of dayEvents){
+      if(me.type==='event'){
+        const vColor=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
+        const vLabel=me.venueTitle||venueTypeLabel(me.venueType||'');
+        const cStyle=me.cancelled?'background:#e05555;color:#080808;border-color:#e05555;':'';
+        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:${vColor};border:1.5px solid ${vColor};white-space:nowrap;display:block;width:fit-content;margin-top:2px;${cStyle}">${escapeHtml(vLabel)}${me.cancelled?' ✕':''}</span>`;
+      } else if(me.type==='training'){
+        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;white-space:nowrap;display:block;width:fit-content;margin-top:2px">${escapeHtml(me.trainingRole||'Training')}</span>`;
+      } else if(me.type==='interview'){
+        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:#cc7a6a;border:1.5px solid #cc7a6a;white-space:nowrap;display:block;width:fit-content;margin-top:2px">Interview</span>`;
+      }
+    }
+
+    let cls="cal-day";
+    if(dayEvents.length) cls+=" good";
+
+    // Check for VU dancer rotation warnings
+    let vuWarnNames=[];
+    for(const me of dayEvents){
+      if(me.type==='event'&&me.venueType==='vu_opening'&&!me.cancelled){
+        for(const r of (me.roster||[])){
+          if(r.role==='Dancer'&&consecutiveVuDancerCount(r.personId)>=3){
+            const wp=getPerson(r.personId);
+            vuWarnNames.push(wp?wp.character||wp.steamName:'?');
+          }
+        }
+      }
+    }
+    const vuWarnTag=vuWarnNames.length?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;background:var(--bad);color:#080808;display:block;width:fit-content;margin-top:2px" title="${escapeHtml(vuWarnNames.join(', '))}">⚠ Rotate</span>`:'';
+
+    html+=`<div class="${cls}" data-mday="${key}" style="cursor:${clickable?'pointer':'default'}">
+      <div class="day-num">${day}</div>
+      <div style="display:flex;flex-direction:column;margin-top:2px">${tags}${vuWarnTag}</div>
+    </div>`;
+  }
+  html+=`</div>`;
+  html+=buildLegend(false);
+
+  const cal=document.getElementById('mgmtCalendar');
+  cal.innerHTML=html;
+  // Remove old listener by replacing node
+  const newCal=cal.cloneNode(true);
+  cal.parentNode.replaceChild(newCal, cal);
+  newCal.id='mgmtCalendar';
+  newCal.addEventListener('click',(e)=>{
+    const dayEl=e.target.closest('[data-mday]');
+    if(!dayEl) return;
+    const dk=dayEl.getAttribute('data-mday');
+    const evts=mgmtByDay.get(dk)||[];
+    if(evts.length) openMgmtDayDetail(dk,evts);
+    else openMgmtEventModal(null, dk);
+  });
+}
+
+function personLabel(pid){
+  const p=getPerson(pid);
+  if(!p) return '—';
+  return `${p.character||p.steamName||'Unknown'}${p.rank?' ('+p.rank+')':''}`.trim();
+}
+
+function personLink(pid){
+  const p=getPerson(pid);
+  if(!p) return '—';
+  const name=`${p.character||p.steamName||'Unknown'}${p.rank?' ('+p.rank+')':''}`.trim();
+  return `<a href="#" data-goto-profile="${escapeHtml(pid)}" style="color:var(--text);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">${escapeHtml(name)}</a>`;
+}
+
+function wireProfileLinks(){
+  document.querySelectorAll('[data-goto-profile]').forEach(el=>{
+    el.onclick=(e)=>{
+      e.preventDefault();e.stopPropagation();
+      const pid=el.getAttribute('data-goto-profile');
+      state.selectedId=pid;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();
+      closeModal();renderProfile();
+    };
+  });
+}
+
+function openMgmtDayDetail(dayKey,evts){
+  const dateObj=new Date(dayKey+"T00:00:00");
+  const pretty=new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(dateObj);
+  let html=`<div style="font-weight:900;font-size:16px;margin-bottom:12px">${escapeHtml(pretty)}</div>`;
+
+  for(const me of evts){
+    const typeColors={training:'#6ec0cc',interview:'#cc7a6a',event:'#c864a0'};
+    let typeLabel=me.type==='event'?'Opening':me.type.charAt(0).toUpperCase()+me.type.slice(1);
+    let subLabel='';
+    const isCancelled=!!me.cancelled;
+    if(me.type==='event' && me.venueType){
+      typeLabel=venueTypeLabel(me.venueType);
+      subLabel=me.venueTitle||'';
+    }
+    if(me.type==='training' && me.trainingRole) subLabel=me.trainingRole+' Training';
+    const pillColor=me.venueType?venueTypeColor(me.venueType):(typeColors[me.type]||'var(--muted)');
+    const timeStr=me.eventTime?` · ${escapeHtml(me.eventTime)}`:'';
+
+    html+=`<div style="padding:10px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div><span class="pill" style="font-size:10px;border-color:${isCancelled?'#e05555':pillColor};${isCancelled?'background:#e05555;color:#080808;':''}">${escapeHtml(typeLabel)}${isCancelled?' — CANCELLED':''}</span>${subLabel?` <span style="font-weight:700;font-size:13px">${escapeHtml(subLabel)}</span>`:''}<span class="muted small">${timeStr}</span></div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-ghost btn-sm" data-edit-mgmt="${escapeHtml(me.id)}">Edit</button>
+          <button class="btn-ghost btn-sm" data-del-mgmt="${escapeHtml(me.id)}">Del</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:12px">`;
+
+    if(me.ledBy) html+=`<div style="margin-bottom:6px"><span class="muted">Led by:</span> <b>${personLink(me.ledBy)}</b></div>`;
+
+    // Opening: show roster
+    if(me.type==='event' && me.roster && me.roster.length){
+      html+=`<div class="muted small" style="font-weight:700;margin-bottom:4px">Roster</div>`;
+      for(const r of me.roster){
+        const rVuStreak=consecutiveVuDancerCount(r.personId);
+        const rVuWarn=rVuStreak>=3;
+        html+=`<div style="padding:6px 8px;border:1px solid ${rVuWarn?'var(--bad-border)':'var(--line)'};border-radius:8px;background:${rVuWarn?'var(--bad-dim)':'var(--panel)'};margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b>${personLink(r.personId)}</b><div style="display:flex;gap:6px;align-items:center">${rVuWarn?`<span style="font-size:9px;font-weight:700;color:var(--bad)">⚠ ${rVuStreak} VU Dancer</span>`:''}<span class="muted">${escapeHtml(r.role||'—')}</span></div></div>
+          ${r.positives?`<div style="margin-top:3px;color:var(--good)"><span style="font-size:10px;font-weight:700">POSITIVE:</span> ${escapeHtml(r.positives)}</div>`:''}
+          ${r.improvements?`<div style="margin-top:2px;color:var(--warn)"><span style="font-size:10px;font-weight:700">IMPROVE:</span> ${escapeHtml(r.improvements)}</div>`:''}
+        </div>`;
+      }
+    }
+
+    // Training: show tagged people
+    if(me.type==='training'){
+      if(me.taggedSupers?.length) html+=`<div><span class="muted">Supervisors:</span> <b>${me.taggedSupers.map(id=>personLink(id)).join(', ')}</b></div>`;
+      if(me.taggedSeniors?.length) html+=`<div><span class="muted">Seniors:</span> <b>${me.taggedSeniors.map(id=>personLink(id)).join(', ')}</b></div>`;
+      if(me.taggedTrainees?.length){
+        html+=`<div style="margin-top:4px" class="muted small" style="font-weight:700">Trainees</div>`;
+        for(const t of me.taggedTrainees){
+          html+=`<div style="padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-top:3px;font-size:11px"><b>${personLink(t.personId)}</b>${t.trainedFor?` — ${escapeHtml(t.trainedFor)}`:''}</div>`;
+        }
+      }
+    }
+
+    // Interview: show tagged people
+    if(me.type==='interview'){
+      if(me.attendedBy?.length) html+=`<div><span class="muted">Attended by:</span> <b>${me.attendedBy.map(id=>personLink(id)).join(', ')}</b></div>`;
+      if(!me.attendedBy && me.taggedSupers?.length) html+=`<div><span class="muted">Supervisors:</span> <b>${me.taggedSupers.map(id=>personLink(id)).join(', ')}</b></div>`;
+      if(me.taggedInterviewees?.length) html+=`<div><span class="muted">Interviewees:</span> <b>${me.taggedInterviewees.map(id=>personLink(id)).join(', ')}</b></div>`;
+    }
+
+    // Legacy support for old attendees format
+    if(!me.roster && me.attendees?.length){
+      html+=`<div><span class="muted">Attended:</span> ${me.attendees.map(id=>personLink(id)).join(', ')}</div>`;
+    }
+    if(me.note) html+=`<div style="margin-top:4px;white-space:pre-wrap">${escapeHtml(me.note)}</div>`;
+
+    html+=`</div></div>`;
+  }
+
+  openModal("Day Details",html);
+  wireProfileLinks();
+
+  document.querySelectorAll('[data-edit-mgmt]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const me=(state.mgmtEvents||[]).find(x=>x.id===btn.getAttribute('data-edit-mgmt'));
+      if(me){closeModal();openMgmtEventModal(me);}
+    });
+  });
+  document.querySelectorAll('[data-del-mgmt]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const delId=btn.getAttribute('data-del-mgmt');
+      // Also remove any profile calendar events synced from this mgmt event
+      state.calendarEvents=(state.calendarEvents||[]).filter(ce=>ce.mgmtSourceId!==delId);
+      state.mgmtEvents=(state.mgmtEvents||[]).filter(x=>x.id!==delId);
+      save();closeModal();renderMgmtCal();
+    });
+  });
+}
+
+function setupAutocomplete(inputId, people, onSelect){
+  const inp=document.getElementById(inputId);
+  if(!inp) return;
+  const wrap=inp.parentElement;
+  let listEl=wrap.querySelector('.ac-list');
+  if(!listEl){ listEl=document.createElement('div'); listEl.className='ac-list'; wrap.appendChild(listEl); }
+
+  function render(q){
+    const query=(q||'').toLowerCase().trim();
+    if(!query){ listEl.classList.remove('open'); listEl.innerHTML=''; return; }
+    const matches=people.filter(p=>{
+      const hay=`${p.character||''} ${p.steamName||''} ${p.stageName||''} ${p.rank||''}`.toLowerCase();
+      return hay.includes(query);
+    }).slice(0,10);
+    if(!matches.length){ listEl.classList.remove('open'); listEl.innerHTML=''; return; }
+    listEl.innerHTML=matches.map(p=>{
+      const name=p.character||p.steamName||'Unknown';
+      const rank=p.rank||'No rank';
+      return `<div class="ac-item" data-ac-pid="${escapeHtml(p.id)}">${escapeHtml(name)} <span class="muted">— ${escapeHtml(rank)}</span></div>`;
+    }).join('');
+    listEl.classList.add('open');
+    listEl.querySelectorAll('.ac-item').forEach(item=>{
+      item.addEventListener('mousedown',(e)=>{
+        e.preventDefault();
+        const pid=item.getAttribute('data-ac-pid');
+        onSelect(pid);
+        inp.value='';
+        listEl.classList.remove('open');
+        listEl.innerHTML='';
+      });
+    });
+  }
+
+  inp.addEventListener('input',()=>render(inp.value));
+  inp.addEventListener('focus',()=>{ if(inp.value.trim()) render(inp.value); });
+  inp.addEventListener('blur',()=>{ setTimeout(()=>{listEl.classList.remove('open');},150); });
+}
+
+function openMgmtEventModal(existing, prefillDate){
+  const isEdit=!!existing;
+  const title=isEdit?"Edit Entry":"Add Entry";
+  const dateVal=isEdit?dateValueFromISO(existing.dateISO):(prefillDate||dateValueFromISO(new Date().toISOString()));
+  let typeVal=isEdit?(existing.type==='event'?'opening':existing.type):'opening';
+  const noteVal=isEdit?existing.note||'':'';
+  const venueTitleVal=isEdit?existing.venueTitle||'':'';
+  const venueTypeVal=isEdit?existing.venueType||'':'';
+  const eventTime=isEdit?existing.eventTime||'':'';
+  const cancelledVal=isEdit?!!existing.cancelled:false;
+  const rosterData=isEdit?(existing.roster||[]):[];
+  const taggedSupers=isEdit?(existing.taggedSupers||[]):[];
+  const taggedSeniors=isEdit?(existing.taggedSeniors||[]):[];
+  const taggedTrainees=isEdit?(existing.taggedTrainees||[]):[];
+  const taggedInterviewees=isEdit?(existing.taggedInterviewees||[]):[];
+  const trainingRole=isEdit?existing.trainingRole||'':'';
+  const attendedBy=isEdit?(existing.attendedBy||[]):[];
+  const roleTrainees=isEdit?(existing.roleTrainees||{}):{};
+  const ledByVal=isEdit?existing.ledBy||'':'';
+
+  const allPeople=state.people.filter(p=>!p.archived).map(p=>{ensurePerson(p);return p;}).sort((a,b)=>(a.character||'').localeCompare(b.character||''));
+  const venueOpts=VENUE_EVENT_TYPES.map(v=>`<option value="${escapeHtml(v.value)}" ${v.value===venueTypeVal?'selected':''}>${escapeHtml(v.label)}</option>`).join('');
+  const trainRoleOpts=[...FIXED_ROLES].map(r=>`<option value="${escapeHtml(r)}" ${r===trainingRole?'selected':''}>${escapeHtml(r)}</option>`).join('');
+
+  function rosterCard(pid,role,positives,improvements){
+    const p=getPerson(pid); if(!p) return '';
+    const rOpts=FIXED_ROLES.map(r=>`<option value="${escapeHtml(r)}" ${r===role?'selected':''}>${escapeHtml(r)}</option>`).join('');
+    const hasContent=!!(role||positives||improvements);
+    const roleLabel=role||'No role';
+    const vuDancerStreak=consecutiveVuDancerCount(pid);
+    const vuWarn=vuDancerStreak>=3;
+    return `<div class="roster-card" data-roster-pid="${escapeHtml(pid)}" style="border:1px solid ${vuWarn?'var(--bad-border)':'var(--line)'};border-radius:var(--r);margin-bottom:6px;overflow:hidden">
+      <div style="padding:6px 10px;background:${vuWarn?'var(--bad-dim)':'var(--surface)'};display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-roster-toggle="${escapeHtml(pid)}">
+        <span style="font-weight:700;font-size:12px">${escapeHtml(p.character||p.steamName||'Unknown')}<span class="muted" style="font-weight:400"> \u00b7 ${escapeHtml(p.rank||'\u2014')}</span>${hasContent?`<span class="muted" style="font-weight:400;font-size:10px"> \u00b7 ${escapeHtml(roleLabel)}</span>`:''}${vuWarn?`<span style="color:var(--bad);font-size:10px;font-weight:700"> \u00b7 ⚠ ${vuDancerStreak} VU Dancer</span>`:''}</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span class="muted" style="font-size:10px" data-roster-arrow="${escapeHtml(pid)}">\u25bc</span>
+          <button class="btn-ghost btn-sm" data-roster-remove="${escapeHtml(pid)}" style="padding:2px 6px">\u2715</button>
+        </div>
+      </div>
+      <div data-roster-body="${escapeHtml(pid)}" style="padding:8px 10px;display:none;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:8px;align-items:center"><span class="muted small" style="min-width:50px">Role</span><select data-roster-role="${escapeHtml(pid)}" style="flex:1;padding:4px 8px;font-size:12px"><option value="">\u2014</option>${rOpts}</select></div>
+        <div style="display:flex;gap:8px;align-items:flex-start"><span class="muted small" style="min-width:50px;padding-top:6px">Positives</span><textarea data-roster-pos="${escapeHtml(pid)}" rows="2" placeholder="What went well..." style="flex:1;font-size:12px;padding:4px 8px;min-height:32px">${escapeHtml(positives||'')}</textarea></div>
+        <div style="display:flex;gap:8px;align-items:flex-start"><span class="muted small" style="min-width:50px;padding-top:6px">Improve</span><textarea data-roster-imp="${escapeHtml(pid)}" rows="2" placeholder="What needs work..." style="flex:1;font-size:12px;padding:4px 8px;min-height:32px">${escapeHtml(improvements||'')}</textarea></div>
+      </div>
+    </div>`;
+  }
+
+  function tagPill(pid,group){
+    const p=getPerson(pid); if(!p) return '';
+    return `<span data-tag-group="${group}" data-tag-pid="${escapeHtml(pid)}" style="font-size:12px;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);display:inline-flex;align-items:center;gap:4px">${escapeHtml(p.character||p.steamName||'Unknown')} <span style="cursor:pointer;color:var(--muted);font-size:10px" data-tag-remove="${escapeHtml(pid)}" data-tag-rgroup="${group}">\u2715</span></span>`;
+  }
+
+  function traineeCard(pid,trainedFor){
+    const p=getPerson(pid); if(!p) return '';
+    return `<div data-trainee-pid="${escapeHtml(pid)}" style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span style="font-weight:700;min-width:100px">${escapeHtml(p.character||p.steamName||'Unknown')}</span>
+      <input data-trainee-for="${escapeHtml(pid)}" value="${escapeHtml(trainedFor||'')}" placeholder="Trained for..." style="flex:1;padding:4px 8px;font-size:12px"/>
+      <button class="btn-ghost btn-sm" data-trainee-remove="${escapeHtml(pid)}">\u2715</button>
+    </div>`;
+  }
+
+  let rosterHtml=rosterData.map(r=>rosterCard(r.personId,r.role,r.positives,r.improvements)).join('');
+  let superPills=taggedSupers.map(id=>tagPill(id,'supers')).join(' ');
+  let seniorPills=taggedSeniors.map(id=>tagPill(id,'seniors')).join(' ');
+  let traineeHtml=taggedTrainees.map(t=>traineeCard(t.personId,t.trainedFor)).join('');
+  let attendedPills=attendedBy.map(id=>tagPill(id,'attended')).join(' ');
+  let roleTraineePills={};
+  for(const role of FIXED_ROLES) roleTraineePills[role]=(roleTrainees[role]||[]).map(id=>tagPill(id,'rt_'+role)).join(' ');
+  let intervieweePills=taggedInterviewees.map(id=>tagPill(id,'interviewees')).join(' ');
+
+  openModal(title,`
+    <div class="row"><div><div class="muted small">Date</div><input type="date" id="me_date" value="${escapeHtml(dateVal)}"/></div>
+    <div><div class="muted small">Time</div><input type="text" id="me_time" value="${escapeHtml(eventTime)}" placeholder="e.g. 7 EST"/></div>
+    <div><div class="muted small">Type</div><select id="me_type">
+      <option value="opening" ${typeVal==='opening'?'selected':''}>Opening</option>
+      <option value="training" ${typeVal==='training'?'selected':''}>Training</option>
+      <option value="interview" ${typeVal==='interview'?'selected':''}>Interview</option>
+    </select></div></div>
+    <div style="margin-top:8px"><div class="muted small" style="font-weight:700">Led by</div>
+      <div id="me_ledByDisplay" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${ledByVal?tagPill(ledByVal,'ledby'):''}</div>
+      <div class="ac-wrap" style="margin-top:4px"><input id="me_addLedBy" placeholder="Type supervisor/manager name..." style="width:100%;font-size:12px"/></div>
+    </div>
+    <div id="me_opening_fields" style="margin-top:10px;${typeVal==='opening'?'':'display:none'}">
+      <div class="row"><div><div class="muted small">Event Type</div><select id="me_venueType">${venueOpts}</select></div>
+      <div><div class="muted small">Location / Title</div><input id="me_venueTitle" value="${escapeHtml(venueTitleVal)}" placeholder="e.g. Yellow Jack"/></div>
+      <div><div class="muted small">Status</div><label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;cursor:pointer"><input type="checkbox" id="me_cancelled" ${cancelledVal?'checked':''}/> Cancelled</label></div></div>
+      <div style="margin-top:10px"><div class="muted small" style="font-weight:700;margin-bottom:6px">Opening Roster</div>
+        <div id="me_roster">${rosterHtml}</div>
+        <div class="ac-wrap" style="margin-top:4px"><input id="me_addRoster" placeholder="Type name to tag staff..." style="width:100%;font-size:12px"/></div>
+      </div>
+    </div>
+    <div id="me_training_fields" style="margin-top:10px;${typeVal==='training'?'':'display:none'}">
+      <div style="margin-top:4px"><div class="muted small" style="font-weight:700">Attended by (Senior+)</div>
+        <div id="me_attendedTags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${attendedPills}</div>
+        <div class="ac-wrap" style="margin-top:4px"><input id="me_addAttended" placeholder="Type name..." style="width:100%;font-size:12px"/></div>
+      </div>
+      ${FIXED_ROLES.map(role=>`<div style="margin-top:8px"><div class="muted small" style="font-weight:700">${escapeHtml(role)} Trainees</div>
+        <div id="me_rt_${escapeHtml(role)}" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${roleTraineePills[role]||''}</div>
+        <div class="ac-wrap" style="margin-top:4px"><input id="me_addRT_${escapeHtml(role)}" placeholder="Type name..." style="width:100%;font-size:12px"/></div>
+      </div>`).join('')}
+    </div>
+    <div id="me_interview_fields" style="margin-top:10px;${typeVal==='interview'?'':'display:none'}">
+      <div style="margin-top:4px"><div class="muted small" style="font-weight:700">Attended by (Senior+)</div>
+        <div id="me_iAttendedTags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${attendedBy.map(id=>tagPill(id,'iattended')).join(' ')}</div>
+        <div class="ac-wrap" style="margin-top:4px"><input id="me_addIAttended" placeholder="Type name..." style="width:100%;font-size:12px"/></div>
+      </div>
+      <div style="margin-top:8px"><div class="muted small" style="font-weight:700">Interviewees (tag after hired)</div>
+        <div id="me_intervieweeTags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${intervieweePills}</div>
+        <div class="ac-wrap" style="margin-top:4px"><input id="me_addInterviewee" placeholder="Type name..." style="width:100%;font-size:12px"/></div>
+      </div>
+    </div>
+    <div style="margin-top:10px"><div class="muted small">Note (optional)</div><textarea id="me_note" rows="2" placeholder="Additional details...">${escapeHtml(noteVal)}</textarea></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-accent" id="me_save">Save</button></div>
+  `);
+
+  document.getElementById('me_type').addEventListener('change',()=>{
+    const t=document.getElementById('me_type').value;
+    document.getElementById('me_opening_fields').style.display=t==='opening'?'':'none';
+    document.getElementById('me_training_fields').style.display=t==='training'?'':'none';
+    document.getElementById('me_interview_fields').style.display=t==='interview'?'':'none';
+  });
+
+  function wireRemove(){
+    document.querySelectorAll('[data-roster-remove]').forEach(btn=>{btn.onclick=(e)=>{e.stopPropagation();const c=btn.closest('.roster-card');if(c)c.remove();};});
+    document.querySelectorAll('[data-tag-remove]').forEach(btn=>{btn.onclick=()=>{const pill=btn.closest('[data-tag-pid]');if(pill)pill.remove();};});
+    document.querySelectorAll('[data-trainee-remove]').forEach(btn=>{btn.onclick=()=>{const row=btn.closest('[data-trainee-pid]');if(row)row.remove();};});
+    document.querySelectorAll('[data-roster-toggle]').forEach(hdr=>{
+      hdr.onclick=(e)=>{
+        if(e.target.matches('[data-roster-remove]')) return;
+        const pid=hdr.getAttribute('data-roster-toggle');
+        const body=document.querySelector(`[data-roster-body="${CSS.escape(pid)}"]`);
+        const arrow=document.querySelector(`[data-roster-arrow="${CSS.escape(pid)}"]`);
+        if(body){
+          const open=body.style.display==='flex';
+          body.style.display=open?'none':'flex';
+          if(arrow) arrow.textContent=open?'\u25bc':'\u25b2';
+        }
+      };
+    });
+  }
+  setupAutocomplete('me_addLedBy',allPeople.filter(p=>isMgmtRank(p.rank)),(pid)=>{
+    document.getElementById('me_ledByDisplay').innerHTML=tagPill(pid,'ledby');
+    // Auto-add leader to roster if not already there
+    const rosterContainer=document.getElementById('me_roster');
+    if(rosterContainer && !rosterContainer.querySelector(`[data-roster-pid="${CSS.escape(pid)}"]`)){
+      rosterContainer.insertAdjacentHTML('beforeend',rosterCard(pid,'','',''));
+    }
+    wireRemove();
+  });
+  setupAutocomplete('me_addRoster',allPeople,(pid)=>{document.getElementById('me_roster').insertAdjacentHTML('beforeend',rosterCard(pid,'','',''));wireRemove();});
+  // Training: attended by (Senior+)
+  setupAutocomplete('me_addAttended',allPeople.filter(p=>isSeniorPlus(p.rank)),(pid)=>{document.getElementById('me_attendedTags').insertAdjacentHTML('beforeend',' '+tagPill(pid,'attended'));wireRemove();});
+  // Training: per-role trainee boxes
+  for(const role of FIXED_ROLES){
+    setupAutocomplete('me_addRT_'+role,allPeople,(pid)=>{
+      document.getElementById('me_rt_'+role).insertAdjacentHTML('beforeend',' '+tagPill(pid,'rt_'+role));wireRemove();
+    });
+  }
+  // Interview: attended by (Senior+)
+  setupAutocomplete('me_addIAttended',allPeople.filter(p=>isSeniorPlus(p.rank)),(pid)=>{document.getElementById('me_iAttendedTags').insertAdjacentHTML('beforeend',' '+tagPill(pid,'iattended'));wireRemove();});
+  setupAutocomplete('me_addInterviewee',allPeople,(pid)=>{document.getElementById('me_intervieweeTags').insertAdjacentHTML('beforeend',' '+tagPill(pid,'interviewees'));wireRemove();});
+  wireRemove();
+
+  document.getElementById('me_save').addEventListener('click',()=>{
+    const ds=(document.getElementById('me_date').value||'').trim();
+    if(!ds) return alert('Pick a date.');
+    const iso=isoFromDateValue(ds);
+    const type=document.getElementById('me_type').value;
+    const evTime=(document.getElementById('me_time').value||'').trim();
+    const note=(document.getElementById('me_note').value||'').trim();
+    const venueType=document.getElementById('me_venueType')?.value||'';
+    const cancelled=document.getElementById('me_cancelled')?.checked||false;
+    const venueTitle=(document.getElementById('me_venueTitle')?.value||'').trim();
+    const tRole=document.getElementById('me_trainRole')?.value||'';
+
+    const roster=[];
+    document.querySelectorAll('.roster-card').forEach(card=>{
+      const pid=card.getAttribute('data-roster-pid');
+      const role=card.querySelector(`[data-roster-role="${CSS.escape(pid)}"]`)?.value||'';
+      const positives=(card.querySelector(`[data-roster-pos="${CSS.escape(pid)}"]`)?.value||'').trim();
+      const improvements=(card.querySelector(`[data-roster-imp="${CSS.escape(pid)}"]`)?.value||'').trim();
+      roster.push({personId:pid,role,positives,improvements});
+    });
+    function collectTags(g){return [...document.querySelectorAll(`[data-tag-group="${g}"]`)].map(el=>el.getAttribute('data-tag-pid'));}
+    const tAttended=type==='training'?collectTags('attended'):collectTags('iattended');
+    const tRoleTrainees={};
+    for(const role of FIXED_ROLES) tRoleTrainees[role]=collectTags('rt_'+role);
+    // Legacy compat
+    const tSupers=tAttended;
+    const tSeniors=[];
+    const tTrainees=[];
+    for(const role of FIXED_ROLES){
+      for(const pid of tRoleTrainees[role]){
+        tTrainees.push({personId:pid,trainedFor:role});
+      }
+    }
+    const tInterviewees=collectTags('interviewees');
+    const ledByPills=collectTags('ledby');
+    const ledBy=ledByPills.length?ledByPills[0]:'';
+
+    const storeType=type==='opening'?'event':type;
+    let mgmtId;
+    if(existing){
+      mgmtId=existing.id;
+      Object.assign(existing,{dateISO:iso,type:storeType,eventTime:evTime,note,venueType,venueTitle,roster,ledBy,cancelled,attendedBy:tAttended,roleTrainees:tRoleTrainees,
+        taggedSupers:tSupers,taggedSeniors:tSeniors,taggedTrainees:tTrainees,taggedInterviewees:tInterviewees,trainingRole:tRole});
+      state.calendarEvents=(state.calendarEvents||[]).filter(ce=>ce.mgmtSourceId!==mgmtId);
+      state.entries=(state.entries||[]).filter(e=>e.mgmtSourceId!==mgmtId);
+    } else {
+      mgmtId=uid();
+      state.mgmtEvents||=[];
+      state.mgmtEvents.push({id:mgmtId,dateISO:iso,type:storeType,eventTime:evTime,note,venueType,venueTitle,roster,ledBy,cancelled,attendedBy:tAttended,roleTrainees:tRoleTrainees,
+        taggedSupers:tSupers,taggedSeniors:tSeniors,taggedTrainees:tTrainees,taggedInterviewees:tInterviewees,trainingRole:tRole});
+    }
+    state.calendarEvents||=[];
+    if(type==='opening' && !cancelled){
+      for(const r of roster){
+        state.calendarEvents.push({id:uid(),personId:r.personId,dateISO:iso,type:'event',
+          venueType,venueTitle:venueTitle||venueTypeLabel(venueType),note,
+          shiftRole:r.role,positives:r.positives,improvements:r.improvements,mgmtSourceId:mgmtId});
+        const evtLabel=`${venueTitle||venueTypeLabel(venueType)}${r.role?' \u00b7 '+r.role:''}`;
+        if(r.positives){
+          state.entries.push({id:uid(),personId:r.personId,dateISO:iso,kind:'Positive',note:r.positives,source:evtLabel,mgmtSourceId:mgmtId});
+        }
+        if(r.improvements){
+          state.entries.push({id:uid(),personId:r.personId,dateISO:iso,kind:'Improvement',note:r.improvements,source:evtLabel,mgmtSourceId:mgmtId});
+        }
+      }
+      // Sync leader as attended (skip if already in roster)
+      if(ledBy && !roster.some(r=>r.personId===ledBy)){
+        state.calendarEvents.push({id:uid(),personId:ledBy,dateISO:iso,type:'event',
+          venueType,venueTitle:venueTitle||venueTypeLabel(venueType),note:'Led opening',
+          shiftRole:'Lead',mgmtSourceId:mgmtId});
+      }
+    } else if(type==='training'){
+      for(const t of tTrainees){
+        state.calendarEvents.push({id:uid(),personId:t.personId,dateISO:iso,type:'training',
+          note:`${t.trainedFor} Training`,trainedFor:t.trainedFor,mgmtSourceId:mgmtId});
+      }
+      // Also create attendance records for attended-by people
+      for(const pid of tAttended){
+        state.calendarEvents.push({id:uid(),personId:pid,dateISO:iso,type:'training',
+          note:'Training (attended)',mgmtSourceId:mgmtId});
+      }
+      // Sync leader as attended (skip if already in attendedBy)
+      if(ledBy && !tAttended.includes(ledBy)){
+        state.calendarEvents.push({id:uid(),personId:ledBy,dateISO:iso,type:'training',
+          note:'Training (led)',mgmtSourceId:mgmtId});
+      }
+    } else if(type==='interview'){
+      for(const pid of tInterviewees){
+        state.calendarEvents.push({id:uid(),personId:pid,dateISO:iso,type:'interview',
+          note:'Interview',mgmtSourceId:mgmtId});
+      }
+      // Sync leader and attended as attended (skip if already in attended)
+      if(ledBy && !tAttended.includes(ledBy)){
+        state.calendarEvents.push({id:uid(),personId:ledBy,dateISO:iso,type:'interview',
+          note:'Interview (led)',mgmtSourceId:mgmtId});
+      }
+      for(const pid of tAttended){
+        state.calendarEvents.push({id:uid(),personId:pid,dateISO:iso,type:'interview',
+          note:'Interview (attended)',mgmtSourceId:mgmtId});
+      }
+    }
+    save();closeModal();renderMgmtCal();toast("Saved");
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: TEMPLATES
+// ═══════════════════════════════════════════
+function renderTemplates(){
+  hideAllViews();
+  document.getElementById('templatesView').style.display="";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+  state.ui.view="templates"; save();
+
+  const host=document.getElementById('templatesBody');
+  const templates=state.templates||[];
+
+  if(!templates.length){
+    host.innerHTML=`<div class="muted small">No templates yet. Click + Template to add one.</div>`;
+    return;
+  }
+
+  // Track which template is being edited (by index), -1 = none
+  const editIdx=renderTemplates._editIdx ?? -1;
+
+  host.innerHTML=templates.map((t,idx)=>{
+    const editing=(idx===editIdx);
+    return `<div style="margin-bottom:12px;border:1px solid ${editing?'var(--accent-mid)':'var(--line)'};border-radius:var(--r);background:var(--surface);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel)">
+        ${editing
+          ?`<input data-tpl-title="${idx}" value="${escapeHtml(t.title||'')}" placeholder="Template title..." style="border:none;background:transparent;font-weight:900;font-size:13px;flex:1;padding:2px 0;color:var(--text)"/>`
+          :`<div style="font-weight:900;font-size:13px;flex:1;color:var(--text)">${escapeHtml(t.title||'(untitled)')}</div>`
+        }
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn-ghost btn-sm" data-tpl-copy="${idx}" title="Copy content">Copy</button>
+          ${editing
+            ?`<button class="btn-accent btn-sm" data-tpl-save="${idx}">Save</button>`
+            :`<button class="btn-ghost btn-sm" data-tpl-edit="${idx}">Edit</button>`
+          }
+          <button class="btn-ghost btn-sm" data-tpl-del="${idx}">Del</button>
+        </div>
+      </div>
+      ${editing
+        ?`<textarea data-tpl-body="${idx}" rows="6" placeholder="Paste your template content here..." style="width:100%;border:none;border-radius:0;background:var(--surface);padding:10px 12px;font-size:12px;resize:vertical">${escapeHtml(t.body||'')}</textarea>`
+        :`<div style="padding:10px 12px;font-size:12px;white-space:pre-wrap;word-break:break-word;color:var(--text);min-height:40px">${escapeHtml(t.body||'(empty — click Edit to add content)')}</div>`
+      }
+    </div>`;
+  }).join('');
+
+  // Wire edit buttons
+  host.querySelectorAll('[data-tpl-edit]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      renderTemplates._editIdx=parseInt(btn.getAttribute('data-tpl-edit'));
+      renderTemplates();
+    });
+  });
+  // Wire save buttons
+  host.querySelectorAll('[data-tpl-save]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.getAttribute('data-tpl-save'));
+      const titleInput=host.querySelector(`[data-tpl-title="${idx}"]`);
+      const bodyInput=host.querySelector(`[data-tpl-body="${idx}"]`);
+      if(state.templates[idx]){
+        if(titleInput) state.templates[idx].title=titleInput.value;
+        if(bodyInput) state.templates[idx].body=bodyInput.value;
+      }
+      save();toast("Template saved");
+      renderTemplates._editIdx=-1;
+      renderTemplates();
+    });
+  });
+  host.querySelectorAll('[data-tpl-copy]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.getAttribute('data-tpl-copy'));
+      const t=state.templates[idx];
+      if(t) copyText(t.body||'');
+    });
+  });
+  host.querySelectorAll('[data-tpl-del]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.getAttribute('data-tpl-del'));
+      state.templates.splice(idx,1);
+      save();renderTemplates._editIdx=-1;renderTemplates();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: SHIFT PERFORMANCE
+// ═══════════════════════════════════════════
+function renderShiftPerf(){
+  hideAllViews();
+  document.getElementById('shiftPerfView').style.display="";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+  state.ui.view="shiftperf"; save();
+
+  // Init month cursor
+  if(!renderShiftPerf._month) renderShiftPerf._month=new Date().toISOString();
+  const filterPid=renderShiftPerf._filterPid||'';
+  const filterDay=renderShiftPerf._filterDay||'';
+
+  const host=document.getElementById('shiftPerfBody');
+  const fromEl=document.getElementById('spDateFrom');
+  const toEl=document.getElementById('spDateTo');
+
+  // Default dates to current month
+  const curMonth=startOfMonth(new Date(renderShiftPerf._month));
+  if(!fromEl.value) fromEl.value=`${curMonth.getFullYear()}-${String(curMonth.getMonth()+1).padStart(2,'0')}-01`;
+  if(!toEl.value){
+    const lastDay=new Date(curMonth.getFullYear(),curMonth.getMonth()+1,0);
+    toEl.value=`${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+  }
+
+  const fromStr=fromEl.value;
+  const toStr=toEl.value;
+
+  // ── MINI CALENDAR ──
+  const calMonth=startOfMonth(new Date(renderShiftPerf._month));
+  const calYear=calMonth.getFullYear(), calMIdx=calMonth.getMonth();
+  document.getElementById('spCalLabel').textContent=fmtMonthLabel(calMonth);
+
+  // Collect events for this calendar month
+  const calEvtsByDay=new Map();
+  for(const me of (state.mgmtEvents||[])){
+    if(me.type!=='event') continue;
+    const dk=dateValueFromISO(me.dateISO);
+    if(!dk) continue;
+    const [cy,cm]=dk.split('-').map(Number);
+    if(cy===calYear&&cm===calMIdx+1){
+      const arr=calEvtsByDay.get(dk)||[];
+      arr.push(me);
+      calEvtsByDay.set(dk,arr);
+    }
+  }
+
+  const firstDay=new Date(calYear,calMIdx,1);
+  const startWd=firstDay.getDay();
+  const dim=new Date(calYear,calMIdx+1,0).getDate();
+
+  let calHtml=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:10px;text-align:center">`;
+  for(const d of ['S','M','T','W','T','F','S']) calHtml+=`<div style="color:var(--muted);padding:3px;font-weight:700">${d}</div>`;
+  for(let i=0;i<startWd;i++) calHtml+=`<div></div>`;
+  for(let day=1;day<=dim;day++){
+    const key=`${calYear}-${String(calMIdx+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const evts=calEvtsByDay.get(key)||[];
+    const hasEvt=evts.length>0;
+    const isSelected=filterDay===key;
+    const evtColor=hasEvt?venueTypeColor(evts[0].venueType||''):'transparent';
+    calHtml+=`<div data-sp-day="${key}" style="padding:4px 2px;border-radius:4px;border:1.5px solid ${hasEvt?evtColor:'transparent'};color:${hasEvt?evtColor:'var(--muted)'};cursor:${hasEvt?'pointer':'default'};font-weight:${hasEvt?'700':'400'};${isSelected?'background:rgba(200,168,76,.15);':''}">${day}</div>`;
+  }
+  calHtml+=`</div>`;
+  document.getElementById('spMiniCal').innerHTML=calHtml;
+
+  // Mini legend
+  document.getElementById('spMiniLegend').innerHTML=VENUE_EVENT_TYPES.map(v=>`<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:999px;color:${v.color};border:1px solid ${v.color}">${escapeHtml(v.label.substring(0,2).toUpperCase())}</span>`).join(' ');
+
+  // Wire mini cal clicks
+  document.querySelectorAll('[data-sp-day]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const dk=el.getAttribute('data-sp-day');
+      const evts=calEvtsByDay.get(dk)||[];
+      if(!evts.length) return;
+      if(renderShiftPerf._filterDay===dk) renderShiftPerf._filterDay='';
+      else renderShiftPerf._filterDay=dk;
+      renderShiftPerf();
+    });
+  });
+
+  // ── MAIN CONTENT ──
+  const openings=(state.mgmtEvents||[]).filter(me=>{
+    if(me.type!=='event') return false;
+    const dk=dateValueFromISO(me.dateISO);
+    if(filterDay) return dk===filterDay;
+    return dk>=fromStr&&dk<=toStr;
+  }).sort((a,b)=>(dateValueFromISO(b.dateISO)||'').localeCompare(dateValueFromISO(a.dateISO)||''));
+
+  let totalOpenings=0, totalStaff=new Set(), totalPos=0, totalImp=0;
+  let html='';
+
+  for(const me of openings){
+    const noteFilter=renderShiftPerf._noteFilter||'';
+    const roster=(me.roster||[]).filter(r=>{
+      const hasNotes=!!(r.positives||r.improvements);
+      if(!hasNotes) return false;
+      if(filterPid&&r.personId!==filterPid) return false;
+      if(noteFilter==='positive'&&!r.positives) return false;
+      if(noteFilter==='improve'&&!r.improvements) return false;
+      return true;
+    });
+    if(!roster.length) continue;
+
+    totalOpenings++;
+    const dateStr=fmtMDY(new Date(me.dateISO));
+    const venueLabel=me.venueTitle||venueTypeLabel(me.venueType||'');
+    const typeColor=venueTypeColor(me.venueType||'');
+    const typeLabel=venueTypeLabel(me.venueType||'');
+    const ledName=me.ledBy?personLink(me.ledBy):'\u2014';
+    const timeStr=me.eventTime||'';
+
+    html+=`<div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;color:${typeColor};border:1.5px solid ${typeColor}">${escapeHtml(typeLabel)}</span>
+          <span style="font-weight:700;font-size:15px">${escapeHtml(venueLabel)}</span>
+        </div>
+        <span style="font-size:11px;color:var(--muted)">${escapeHtml(dateStr)}${timeStr?' \u00b7 '+escapeHtml(timeStr):''}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Led by <b>${ledName}</b></div>`;
+
+    for(const r of roster){
+      totalStaff.add(r.personId);
+      const pName=personLink(r.personId);
+      if(r.positives && noteFilter!=='improve'){
+        totalPos++;
+        html+=`<div style="border:1px solid var(--good-border);border-radius:var(--r);overflow:hidden;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--good-dim)">
+            <b style="font-size:13px">${pName}</b>
+            <div style="display:flex;gap:6px;align-items:center"><span class="muted" style="font-size:11px">${escapeHtml(r.role||'\u2014')}</span><span style="font-size:10px;font-weight:700;color:var(--good)">POSITIVE</span></div>
+          </div>
+          <div style="padding:8px 12px;font-size:13px">${escapeHtml(r.positives)}</div>
+        </div>`;
+      }
+      if(r.improvements && noteFilter!=='positive'){
+        totalImp++;
+        html+=`<div style="border:1px solid var(--warn-border);border-radius:var(--r);overflow:hidden;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--warn-dim)">
+            <b style="font-size:13px">${pName}</b>
+            <div style="display:flex;gap:6px;align-items:center"><span class="muted" style="font-size:11px">${escapeHtml(r.role||'\u2014')}</span><span style="font-size:10px;font-weight:700;color:var(--warn)">IMPROVE</span></div>
+          </div>
+          <div style="padding:8px 12px;font-size:13px">${escapeHtml(r.improvements)}</div>
+        </div>`;
+      }
+    }
+    html+=`</div>`;
+  }
+
+  if(!html) html=`<div class="muted small" style="text-align:center;padding:20px">No performance notes for this ${filterDay?'day':filterPid?'person':'period'}.</div>`;
+
+  const summaryHtml=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+    <span class="muted small" style="font-weight:700">${filterDay?escapeHtml(fmtMDY(new Date(filterDay+'T00:00:00'))):(escapeHtml(fmtMDY(new Date(fromStr+'T00:00:00')))+' \u2014 '+escapeHtml(fmtMDY(new Date(toStr+'T00:00:00'))))}</span>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <span class="pill" style="font-size:12px;cursor:pointer" id="spToggleAll">${totalOpenings} opening${totalOpenings!==1?'s':''}</span>
+      <span class="pill good" style="font-size:12px;cursor:pointer;${renderShiftPerf._noteFilter==='positive'?'outline:2px solid var(--good);outline-offset:1px;':''}" id="spTogglePos">${totalPos} positive${totalPos!==1?'s':''}</span>
+      <span class="pill warn" style="font-size:12px;cursor:pointer;${renderShiftPerf._noteFilter==='improve'?'outline:2px solid var(--warn);outline-offset:1px;':''}" id="spToggleImp">${totalImp} improve</span>
+    </div>
+  </div>`;
+
+  host.innerHTML=summaryHtml+html;
+  wireProfileLinks();
+  document.getElementById('spTogglePos')?.addEventListener('click',()=>{
+    renderShiftPerf._noteFilter=renderShiftPerf._noteFilter==='positive'?'':'positive';
+    renderShiftPerf();
+  });
+  document.getElementById('spToggleImp')?.addEventListener('click',()=>{
+    renderShiftPerf._noteFilter=renderShiftPerf._noteFilter==='improve'?'':'improve';
+    renderShiftPerf();
+  });
+  document.getElementById('spToggleAll')?.addEventListener('click',()=>{
+    renderShiftPerf._noteFilter='';
+    renderShiftPerf();
+  });
+}
+
+
+// ═══════════════════════════════════════════
+// RENDER: BLACKLIST
+// ═══════════════════════════════════════════
+function renderBlacklist(){
+  hideAllViews();
+  document.getElementById('blacklistView').style.display="";
+  $("#backBtn").style.display="";
+  $("#searchBar").style.display="none";
+  state.ui.view="blacklist"; save();
+
+  const host=document.getElementById('blacklistBody');
+  const entries=(state.blacklist||[]).sort((a,b)=>(b.dateAdded||'').localeCompare(a.dateAdded||''));
+
+  if(!entries.length){
+    host.innerHTML=`<div class="muted small" style="text-align:center;padding:20px">No blacklist entries.</div>`;
+    return;
+  }
+
+  let html='';
+  for(const e of entries){
+    html+=`<div style="border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:8px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:700;font-size:14px">${escapeHtml(e.name||'—')}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">
+            ${e.birthday?`<span>DOB: ${escapeHtml(fmtMDY(new Date(e.birthday+'T00:00:00')))}</span> · `:''}
+            <span>Start: ${e.startDate?escapeHtml(fmtMDY(new Date(e.startDate+'T00:00:00'))):'—'}</span> · 
+            <span>End: ${e.endDate?escapeHtml(fmtMDY(new Date(e.endDate+'T00:00:00'))):'—'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Issued by: <b>${escapeHtml(e.issuingManager||'—')}</b></div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn-ghost btn-sm" data-bl-edit="${escapeHtml(e.id)}">Edit</button>
+          <button class="btn-ghost btn-sm" data-bl-del="${escapeHtml(e.id)}">Del</button>
+        </div>
+      </div>
+      ${e.reason?`<div style="margin-top:8px;padding:8px;border:1px dashed var(--line);border-radius:var(--r);font-size:12px;white-space:pre-wrap">${escapeHtml(e.reason)}</div>`:''}
+    </div>`;
+  }
+
+  host.innerHTML=html;
+
+  host.querySelectorAll('[data-bl-edit]').forEach(btn=>btn.addEventListener('click',()=>openBlacklistModal(btn.getAttribute('data-bl-edit'))));
+  host.querySelectorAll('[data-bl-del]').forEach(btn=>btn.addEventListener('click',()=>{
+    state.blacklist=(state.blacklist||[]).filter(x=>x.id!==btn.getAttribute('data-bl-del'));
+    save();renderBlacklist();
+  }));
+}
+
+function openBlacklistModal(editId){
+  const existing=editId?(state.blacklist||[]).find(x=>x.id===editId):null;
+  const title=existing?'Edit Blacklist Entry':'Add Blacklist Entry';
+
+  openModal(title,`
+    <div class="row"><div><div class="muted small">Name</div><input id="bl_name" value="${escapeHtml(existing?.name||'')}" placeholder="Character name"/></div>
+    <div><div class="muted small">Birthday</div><input type="date" id="bl_bday" value="${escapeHtml(existing?.birthday||'')}"/></div></div>
+    <div class="row" style="margin-top:8px"><div><div class="muted small">Start Date</div><input type="date" id="bl_start" value="${escapeHtml(existing?.startDate||'')}"/></div>
+    <div><div class="muted small">End Date</div><input type="date" id="bl_end" value="${escapeHtml(existing?.endDate||'')}"/></div></div>
+    <div style="margin-top:8px"><div class="muted small">Issuing Manager</div><input id="bl_manager" value="${escapeHtml(existing?.issuingManager||'')}" placeholder="Who issued this"/></div>
+    <div style="margin-top:8px"><div class="muted small">Reason</div><textarea id="bl_reason" rows="3" placeholder="Why they were blacklisted...">${escapeHtml(existing?.reason||'')}</textarea></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-accent" id="bl_save">Save</button></div>
+  `);
+
+  document.getElementById('bl_save').addEventListener('click',()=>{
+    if(!state.blacklist) state.blacklist=[];
+    const entry=existing||{id:uid(),dateAdded:new Date().toISOString()};
+    entry.name=(document.getElementById('bl_name').value||'').trim();
+    entry.birthday=document.getElementById('bl_bday').value||'';
+    entry.startDate=document.getElementById('bl_start').value||'';
+    entry.endDate=document.getElementById('bl_end').value||'';
+    entry.issuingManager=(document.getElementById('bl_manager').value||'').trim();
+    entry.reason=(document.getElementById('bl_reason').value||'').trim();
+    if(!existing) state.blacklist.push(entry);
+    save();closeModal();renderBlacklist();toast('Blacklist entry saved');
+  });
+}
+
+// ═══════════════════════════════════════════
+// WIRES
+// ═══════════════════════════════════════════
+$("#importCsvBtn").addEventListener("click",()=>$("#csvFile").click());
+$("#csvFile").addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importCSVFile(f);e.target.value="";});
+$("#exportBtn").addEventListener("click",exportBackup);
+$("#importBackupBtn").addEventListener("click",()=>$("#backupFile").click());
+$("#backupFile").addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importBackup(f);e.target.value="";});
+$("#addPersonBtn").addEventListener("click",addPerson);
+$("#promoBtn").addEventListener("click",()=>{state.ui.reviewTab='eotm';renderReviewPage();});
+$("#overviewBtn").addEventListener("click",renderOverview);
+$("#mgmtCalBtn").addEventListener("click",renderMgmtCal);
+document.getElementById('templatesBtn')?.addEventListener("click",renderTemplates);
+document.getElementById('blacklistBtn')?.addEventListener('click',renderBlacklist);
+document.getElementById('addBlacklistBtn')?.addEventListener('click',()=>openBlacklistModal(null));
+document.getElementById('shiftPerfBtn')?.addEventListener("click",()=>{renderShiftPerf._filterPid='';renderShiftPerf._filterDay='';renderShiftPerf._month=new Date().toISOString();renderShiftPerf();});
+document.getElementById('spDateFrom')?.addEventListener('change',()=>{renderShiftPerf._filterDay='';renderShiftPerf();});
+document.getElementById('spDateTo')?.addEventListener('change',()=>{renderShiftPerf._filterDay='';renderShiftPerf();});
+document.getElementById('spCalPrev')?.addEventListener('click',()=>{const d=startOfMonth(new Date(renderShiftPerf._month||new Date().toISOString()));d.setMonth(d.getMonth()-1);renderShiftPerf._month=d.toISOString();renderShiftPerf();});
+document.getElementById('spCalNext')?.addEventListener('click',()=>{const d=startOfMonth(new Date(renderShiftPerf._month||new Date().toISOString()));d.setMonth(d.getMonth()+1);renderShiftPerf._month=d.toISOString();renderShiftPerf();});
+document.getElementById('spClearFilter')?.addEventListener('click',()=>{
+  renderShiftPerf._filterPid='';renderShiftPerf._filterDay='';renderShiftPerf._noteFilter='';
+  renderShiftPerf._month=new Date().toISOString();
+  const inp=document.getElementById('spPersonFilter');if(inp)inp.value='';
+  const now=new Date();
+  const f=document.getElementById('spDateFrom'),t=document.getElementById('spDateTo');
+  if(f)f.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01';
+  if(t)t.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(new Date(now.getFullYear(),now.getMonth()+1,0).getDate()).padStart(2,'0');
+  renderShiftPerf();
+});
+document.getElementById('spShowAll')?.addEventListener('click',()=>{
+  renderShiftPerf._filterDay='';renderShiftPerf._filterPid='';
+  const inp=document.getElementById('spPersonFilter');if(inp)inp.value='';
+  const f=document.getElementById('spDateFrom'),t=document.getElementById('spDateTo');
+  if(f)f.value='2020-01-01';
+  const now=new Date();
+  if(t)t.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  renderShiftPerf();
+});
+document.getElementById('addTemplateBtn')?.addEventListener("click",()=>{
+  state.templates||=[];
+  state.templates.push({id:uid(),title:'',body:''});
+  save();
+  renderTemplates._editIdx=state.templates.length-1;
+  renderTemplates();
+});
+$("#resetBtn").addEventListener("click",resetAll);
+
+document.getElementById('addMgmtEventBtn')?.addEventListener('click',()=>openMgmtEventModal(null));
+document.getElementById('mcPrev')?.addEventListener('click',()=>{
+  const d=startOfMonth(new Date(state.mgmtMonthCursor));
+  d.setMonth(d.getMonth()-1); state.mgmtMonthCursor=d.toISOString(); save(); renderMgmtCal();
+});
+document.getElementById('mcNext')?.addEventListener('click',()=>{
+  const d=startOfMonth(new Date(state.mgmtMonthCursor));
+  d.setMonth(d.getMonth()+1); state.mgmtMonthCursor=d.toISOString(); save(); renderMgmtCal();
+});
+
+$("#inactiveBtn").addEventListener("click",()=>{state.ui.inactiveOnly=!state.ui.inactiveOnly;if(state.ui.inactiveOnly){state.ui.showArchived=false;state.ui.needsTrainOnly=false;}save();renderHub();});
+document.getElementById('needsTrainBtn')?.addEventListener("click",()=>{state.ui.needsTrainOnly=!state.ui.needsTrainOnly;if(state.ui.needsTrainOnly){state.ui.showArchived=false;state.ui.inactiveOnly=false;}save();renderHub();});
+$("#pastBtn").addEventListener("click",()=>{state.ui.showArchived=!state.ui.showArchived;if(state.ui.showArchived){state.ui.inactiveOnly=false;state.ui.needsTrainOnly=false;}save();renderHub();});
+
+$("#backBtn").addEventListener("click",renderHub);
+$("#editPersonBtn").addEventListener("click",editBasics);
+$("#addDisciplineBtn").addEventListener("click",()=>addEntry());
+$("#addNoteBtn").addEventListener("click",()=>openNoteModal(null));
+$("#addCalEventBtn").addEventListener("click",()=>openCalEventModal(null));
+
+const pm=document.getElementById('pPrevMonth');
+if(pm) pm.addEventListener('click',()=>{
+  const d=startOfMonth(new Date(state.profileMonthCursor));
+  d.setMonth(d.getMonth()-1); state.profileMonthCursor=d.toISOString(); save(); renderProfile();
+});
+const nm=document.getElementById('pNextMonth');
+if(nm) nm.addEventListener('click',()=>{
+  const d=startOfMonth(new Date(state.profileMonthCursor));
+  d.setMonth(d.getMonth()+1); state.profileMonthCursor=d.toISOString(); save(); renderProfile();
+});
+
+const ovP=document.getElementById('ovPrev');
+if(ovP) ovP.addEventListener('click',()=>{
+  const d=startOfMonth(new Date(state.overviewMonthCursor));
+  d.setMonth(d.getMonth()-1); state.overviewMonthCursor=d.toISOString(); save(); renderOverview();
+});
+const ovN=document.getElementById('ovNext');
+if(ovN) ovN.addEventListener('click',()=>{
+  const d=startOfMonth(new Date(state.overviewMonthCursor));
+  d.setMonth(d.getMonth()+1); state.overviewMonthCursor=d.toISOString(); save(); renderOverview();
+});
+const ovApply=document.getElementById('ovDateApply');
+if(ovApply) ovApply.addEventListener('click',renderOverview);
+const ovClear=document.getElementById('ovDateClear');
+if(ovClear) ovClear.addEventListener('click',()=>{
+  const f=document.getElementById('ovDateFrom'),t=document.getElementById('ovDateTo');
+  if(f)f.value='';if(t)t.value='';renderOverview();
+});
+
+$("#search").addEventListener("input",()=>{if(state.ui?.view==='hub') renderHub();});
+$("#sort").addEventListener("change",()=>{if(state.ui?.view==='hub') renderHub();});
+
+document.getElementById('reviewTabEotm')?.addEventListener('click',()=>{state.ui.reviewTab='eotm';save();renderReviewPage();});
+document.getElementById('reviewTabPromo')?.addEventListener('click',()=>{state.ui.reviewTab='promo';save();renderReviewPage();});
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+// Global click handler for clickable names
+document.addEventListener('click',(e)=>{
+  const el=e.target.closest('[data-go-profile]');
+  if(!el) return;
+  e.preventDefault();e.stopPropagation();
+  const pid=el.getAttribute('data-go-profile');
+  if(!pid) return;
+  state.selectedId=pid;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();
+});
+
+boot();
+
+// Wire shift performance person filter autocomplete (after boot so DOM exists)
+setTimeout(()=>{
+  const allP=state.people.filter(p=>!p.archived);
+  setupAutocomplete('spPersonFilter',allP,(pid)=>{
+    renderShiftPerf._filterPid=pid;
+    renderShiftPerf();
+  });
+},100);
+</script>
+</body>
+</html>
