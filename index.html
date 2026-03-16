@@ -499,7 +499,7 @@
       </div>
       <div class="panel">
         <div class="panel-head">
-          <div class="h">Feedback</div>
+          <div class="h">Records</div>
           <div class="row tight" style="gap:6px">
             <span class="pill" id="strikePill">Strikes: 0</span>
             <button class="btn-ghost btn-sm" id="addDisciplineBtn">+ Entry</button>
@@ -514,6 +514,22 @@
           <button class="btn-ghost btn-sm" id="addNoteBtn">+ Note</button>
         </div>
         <div class="panel-body" id="notesList"></div>
+      </div>
+      <div class="panel" id="leadershipPanel" style="display:none">
+        <div class="panel-head">
+          <div class="h">Leadership Activity</div>
+          <div class="row tight" style="gap:6px;flex-wrap:wrap">
+            <button class="btn-ghost btn-sm" id="ldPrev">&larr;</button>
+            <span class="pill" id="ldMonthLabel">Month</span>
+            <button class="btn-ghost btn-sm" id="ldNext">&rarr;</button>
+            <span class="muted small" style="margin-left:6px">Range:</span>
+            <input type="date" id="ldFrom" style="font-size:10px;padding:3px 4px;width:110px"/>
+            <input type="date" id="ldTo" style="font-size:10px;padding:3px 4px;width:110px"/>
+            <button class="btn-ghost btn-sm" id="ldApply" style="font-size:10px">Apply</button>
+            <button class="btn-ghost btn-sm" id="ldClear" style="font-size:10px">Clear</button>
+          </div>
+        </div>
+        <div class="panel-body" id="leadershipBody"></div>
       </div>
     </section>
 
@@ -1061,7 +1077,18 @@ function lastEotmLabel(pid){ const l=eotmForPerson(pid)[0]; if(!l) return "—";
 function monthContextCounts(pid,md){
   const f=startOfMonth(md),t=endOfMonth(md);
   const ents=entriesForPerson(pid).filter(e=>{const d=new Date(e.dateISO);return d>=f&&d<t;});
-  return { strikes:ents.filter(e=>normalizeKind(e.kind)==='Strike').length, warnings:ents.filter(e=>normalizeKind(e.kind)==='Warning').length, suspensions:ents.filter(e=>normalizeKind(e.kind)==='Suspension').length, verbals:ents.filter(e=>normalizeKind(e.kind)==='Verbal Discussion').length, positives:ents.filter(e=>normalizeKind(e.kind)==='Positive').length, improvements:ents.filter(e=>normalizeKind(e.kind)==='Improvement').length };
+  // Count positives/improvements from roster data instead of entries
+  const mgmtInMonth=(state.mgmtEvents||[]).filter(me=>{const d=new Date(me.dateISO);return me.type==='event'&&d>=from&&d<to;});
+  let rosterPos=0,rosterImp=0;
+  for(const me of mgmtInMonth){
+    for(const r of (me.roster||[])){
+      if(r.personId===pid){
+        if(r.positives) rosterPos++;
+        if(r.improvements) rosterImp++;
+      }
+    }
+  }
+  return { strikes:ents.filter(e=>normalizeKind(e.kind)==='Strike').length, warnings:ents.filter(e=>normalizeKind(e.kind)==='Warning').length, suspensions:ents.filter(e=>normalizeKind(e.kind)==='Suspension').length, verbals:ents.filter(e=>normalizeKind(e.kind)==='Verbal Discussion').length, positives:rosterPos, improvements:rosterImp };
 }
 function markEotm(pid,md){
   const m=startOfMonth(md).toISOString();
@@ -1315,6 +1342,7 @@ function renderProfile(){
   document.getElementById('mgmtCalView').style.display="none";
   document.getElementById('templatesView').style.display="none";
   document.getElementById('shiftPerfView').style.display="none";
+  document.getElementById('blacklistView').style.display="none";
   $("#backBtn").style.display="";
   $("#searchBar").style.display="none";
 
@@ -1389,6 +1417,7 @@ function renderProfile(){
   if(sp) sp.textContent=`Strikes: ${strikeCount}`;
 
   renderNotes(p.id);
+  renderLeadership(p.id, p);
 
   document.querySelectorAll('button[data-copy-text]').forEach(btn=>{
     btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();copyText(btn.getAttribute('data-copy-text')||'');});
@@ -1671,14 +1700,26 @@ function renderCalendar(pid){
     if(dayEvents.length) clickable=true;
 
     let tags="";
+    const seenTypes=new Set();
     for(const ce of dayEvents){
+      // For training and interview, only show one pill per type per day
+      if(ce.type==='training'||ce.type==='interview'){
+        if(seenTypes.has(ce.type)) continue;
+        seenTypes.add(ce.type);
+      }
+      // For venue events, dedup by mgmtSourceId
+      if(ce.venueType && ce.mgmtSourceId){
+        const dedup='evt_'+ce.mgmtSourceId;
+        if(seenTypes.has(dedup)) continue;
+        seenTypes.add(dedup);
+      }
       if(ce.venueType){
         const vColor=ce.cancelled?'#e05555':venueTypeColor(ce.venueType);
         const vLabel=ce.venueTitle||venueTypeLabel(ce.venueType);
         const cStyle=ce.cancelled?'background:#e05555;color:#080808;border-color:#e05555;':'';
         tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:${vColor};border:1.5px solid ${vColor};display:block;width:fit-content;margin-top:3px;white-space:nowrap;${cStyle}" title="${escapeHtml(vLabel)}">${escapeHtml(vLabel)}${ce.cancelled?' ✕':''}</span>`;
       } else if(ce.type==='training'){
-        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;display:block;width:fit-content;margin-top:3px">${escapeHtml(ce.trainedFor||'Training')}</span>`;
+        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;display:block;width:fit-content;margin-top:3px">Training</span>`;
       } else if(ce.type==='interview'){
         tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:#cc7a6a;border:1.5px solid #cc7a6a;display:block;width:fit-content;margin-top:3px">Interview</span>`;
       }
@@ -1809,7 +1850,7 @@ function renderEntries(pid){
   const host=document.getElementById('discipline');
   const ents=entriesForPerson(pid);
 
-  const kindColors={Strike:'bad',Warning:'warn',Suspension:'bad','Verbal Discussion':'accent',Positive:'good',Improvement:'warn'};
+  const kindColors={Strike:'bad',Warning:'warn',Suspension:'bad','Verbal Discussion':'accent'};
   host.innerHTML=ents.map(e=>{
     const isSynced=!!e.mgmtSourceId;
     return `<div class="entry-card">
@@ -2053,7 +2094,6 @@ function addEntry(existingId=null){
   openModal(existing?'Edit Entry':'Add Entry',`
     <div class="row"><div><div class="muted small">Date</div><input id="en_date" type="date" value="${escapeHtml(dv)}"></div>
     <div><div class="muted small">Type</div><select id="en_kind">
-      <option value="Positive" ${existing&&normalizeKind(existing.kind)==='Positive'?'selected':''}>Positive</option>
       <option value="Strike" ${existing&&normalizeKind(existing.kind)==='Strike'?'selected':''}>Strike</option>
       <option value="Warning" ${existing&&normalizeKind(existing.kind)==='Warning'?'selected':''}>Warning</option>
       <option value="Suspension" ${existing&&normalizeKind(existing.kind)==='Suspension'?'selected':''}>Suspension</option>
@@ -2232,7 +2272,16 @@ function renderMgmtCal(){
     const clickable=dayEvents.length>0;
 
     let tags="";
+    const seenMgmtTypes=new Set();
     for(const me of dayEvents){
+      if(me.type==='training'){
+        if(seenMgmtTypes.has('training')) continue;
+        seenMgmtTypes.add('training');
+      }
+      if(me.type==='interview'){
+        if(seenMgmtTypes.has('interview')) continue;
+        seenMgmtTypes.add('interview');
+      }
       if(me.type==='event'){
         const vColor=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
         const vLabel=me.venueTitle||venueTypeLabel(me.venueType||'');
@@ -2248,23 +2297,9 @@ function renderMgmtCal(){
     let cls="cal-day";
     if(dayEvents.length) cls+=" good";
 
-    // Check for VU dancer rotation warnings
-    let vuWarnNames=[];
-    for(const me of dayEvents){
-      if(me.type==='event'&&me.venueType==='vu_opening'&&!me.cancelled){
-        for(const r of (me.roster||[])){
-          if(r.role==='Dancer'&&consecutiveVuDancerCount(r.personId)>=3){
-            const wp=getPerson(r.personId);
-            vuWarnNames.push(wp?wp.character||wp.steamName:'?');
-          }
-        }
-      }
-    }
-    const vuWarnTag=vuWarnNames.length?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;background:var(--bad);color:#080808;display:block;width:fit-content;margin-top:2px" title="${escapeHtml(vuWarnNames.join(', '))}">⚠ Rotate</span>`:'';
-
     html+=`<div class="${cls}" data-mday="${key}" style="cursor:${clickable?'pointer':'default'}">
       <div class="day-num">${day}</div>
-      <div style="display:flex;flex-direction:column;margin-top:2px">${tags}${vuWarnTag}</div>
+      <div style="display:flex;flex-direction:column;margin-top:2px">${tags}</div>
     </div>`;
   }
   html+=`</div>`;
@@ -2660,13 +2695,7 @@ function openMgmtEventModal(existing, prefillDate){
         state.calendarEvents.push({id:uid(),personId:r.personId,dateISO:iso,type:'event',
           venueType,venueTitle:venueTitle||venueTypeLabel(venueType),note,
           shiftRole:r.role,positives:r.positives,improvements:r.improvements,mgmtSourceId:mgmtId});
-        const evtLabel=`${venueTitle||venueTypeLabel(venueType)}${r.role?' \u00b7 '+r.role:''}`;
-        if(r.positives){
-          state.entries.push({id:uid(),personId:r.personId,dateISO:iso,kind:'Positive',note:r.positives,source:evtLabel,mgmtSourceId:mgmtId});
-        }
-        if(r.improvements){
-          state.entries.push({id:uid(),personId:r.personId,dateISO:iso,kind:'Improvement',note:r.improvements,source:evtLabel,mgmtSourceId:mgmtId});
-        }
+
       }
       // Sync leader as attended (skip if already in roster)
       if(ledBy && !roster.some(r=>r.personId===ledBy)){
@@ -2968,6 +2997,127 @@ function renderShiftPerf(){
   });
 }
 
+
+// ═══════════════════════════════════════════
+// RENDER: LEADERSHIP ACTIVITY
+// ═══════════════════════════════════════════
+function renderLeadership(pid, p){
+  const panel=document.getElementById('leadershipPanel');
+  const host=document.getElementById('leadershipBody');
+  if(!panel||!host) return;
+
+  if(!isSeniorPlus(p.rank)){
+    panel.style.display='none';
+    return;
+  }
+  panel.style.display='';
+
+  // Month cursor
+  if(!renderLeadership._month) renderLeadership._month=new Date().toISOString();
+  const curMonth=startOfMonth(new Date(renderLeadership._month));
+
+  const fromEl=document.getElementById('ldFrom');
+  const toEl=document.getElementById('ldTo');
+  const labelEl=document.getElementById('ldMonthLabel');
+
+  // Default to current month
+  if(!fromEl.value) fromEl.value=`${curMonth.getFullYear()}-${String(curMonth.getMonth()+1).padStart(2,'0')}-01`;
+  if(!toEl.value){
+    const lastDay=new Date(curMonth.getFullYear(),curMonth.getMonth()+1,0);
+    toEl.value=`${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+  }
+
+  const fromStr=fromEl.value;
+  const toStr=toEl.value;
+  if(labelEl) labelEl.textContent=fmtMonthLabel(curMonth);
+
+  const allMgmt=(state.mgmtEvents||[]).filter(me=>{
+    const dk=dateValueFromISO(me.dateISO);
+    return dk>=fromStr&&dk<=toStr;
+  }).sort((a,b)=>(dateValueFromISO(b.dateISO)||'').localeCompare(dateValueFromISO(a.dateISO)||''));
+
+  const led={openings:[],trainings:[],interviews:[]};
+  const attended={trainings:[],interviews:[]};
+
+  for(const me of allMgmt){
+    const dateStr=fmtMDY(new Date(me.dateISO));
+    const isLed=me.ledBy===pid;
+    const isAttended=(me.attendedBy||[]).includes(pid)||(me.taggedSupers||[]).includes(pid)||(me.taggedSeniors||[]).includes(pid);
+    const isOnRoster=(me.roster||[]).some(r=>r.personId===pid);
+
+    if(me.type==='event'){
+      const label=me.venueTitle||venueTypeLabel(me.venueType||'');
+      const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
+      const entry={date:dateStr,label,color,cancelled:!!me.cancelled};
+      if(isLed||isOnRoster) led.openings.push(entry);
+    } else if(me.type==='training'){
+      const entry={date:dateStr,label:'Training',color:'#6ec0cc'};
+      if(isLed) led.trainings.push(entry);
+      else if(isAttended) attended.trainings.push(entry);
+    } else if(me.type==='interview'){
+      const entry={date:dateStr,label:'Interview',color:'#cc7a6a'};
+      if(isLed) led.interviews.push(entry);
+      else if(isAttended) attended.interviews.push(entry);
+    }
+  }
+
+  function section(data,emptyMsg){
+    if(!data.length) return `<div class="muted small" style="padding:4px 0">${escapeHtml(emptyMsg)}</div>`;
+    return data.map(e=>`<div style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:12px">
+      <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;color:${e.color};border:1.5px solid ${e.color};${e.cancelled?'background:#e05555;color:#080808;border-color:#e05555;':''}">${escapeHtml(e.label)}${e.cancelled?' \u2715':''}</span>
+      <span class="muted">${escapeHtml(e.date)}</span>
+    </div>`).join('');
+  }
+
+  const ledTotal=led.openings.length+led.trainings.length+led.interviews.length;
+  const attTotal=attended.trainings.length+attended.interviews.length;
+
+  let html=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px">Led (${ledTotal})</div>
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:6px 0 2px">Openings (${led.openings.length})</div>
+        ${section(led.openings,'None')}
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Trainings (${led.trainings.length})</div>
+        ${section(led.trainings,'None')}
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Interviews (${led.interviews.length})</div>
+        ${section(led.interviews,'None')}
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px">Attended (${attTotal})</div>
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:6px 0 2px">Trainings (${attended.trainings.length})</div>
+        ${section(attended.trainings,'None')}
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Interviews (${attended.interviews.length})</div>
+        ${section(attended.interviews,'None')}
+      </div>
+    </div>`;
+
+  host.innerHTML=html;
+
+  // Wire controls
+  const rerender=()=>renderLeadership(pid,p);
+  document.getElementById('ldPrev')?.addEventListener('click',()=>{
+    const d=startOfMonth(new Date(renderLeadership._month));d.setMonth(d.getMonth()-1);
+    renderLeadership._month=d.toISOString();
+    fromEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    const last=new Date(d.getFullYear(),d.getMonth()+1,0);
+    toEl.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+    rerender();
+  });
+  document.getElementById('ldNext')?.addEventListener('click',()=>{
+    const d=startOfMonth(new Date(renderLeadership._month));d.setMonth(d.getMonth()+1);
+    renderLeadership._month=d.toISOString();
+    fromEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    const last=new Date(d.getFullYear(),d.getMonth()+1,0);
+    toEl.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+    rerender();
+  });
+  document.getElementById('ldApply')?.addEventListener('click',rerender);
+  document.getElementById('ldClear')?.addEventListener('click',()=>{
+    renderLeadership._month=new Date().toISOString();
+    fromEl.value='';toEl.value='';rerender();
+  });
+}
 
 // ═══════════════════════════════════════════
 // RENDER: BLACKLIST
