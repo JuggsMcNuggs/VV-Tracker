@@ -429,6 +429,7 @@
     <button class="nav-item" id="sideLeader" data-perm-edit>Leadership</button>
     <button class="nav-item" id="sidePromo" data-perm-edit>EOTM / Promo</button>
     <button class="nav-item" id="sideVenues" data-perm-edit>Venue Tracker</button>
+    <button class="nav-item" id="sideRental" data-perm-edit>Rental Calculator</button>
     <button class="nav-item" id="sideTemplates" data-perm-edit>Templates</button>
     <button class="nav-item" id="sideAudit" data-perm-edit>Audit Log</button>
     <div class="nav-divider"></div>
@@ -657,6 +658,57 @@
       </div>
     </section>
 
+
+    <!-- RENTAL CALCULATOR -->
+    <section id="rentalCalcView" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:12px">
+        <!-- Left: Config -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="panel">
+            <div class="panel-head"><div class="h">Package</div></div>
+            <div class="panel-body">
+              <div id="rcPackageGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px"></div>
+              <div class="muted small" style="margin-top:8px;text-align:center">All packages include 4 Security</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="panel">
+              <div class="panel-head"><div class="h">Additional Staff</div></div>
+              <div class="panel-body" id="rcStaffBody"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><div class="h">Add-ons</div></div>
+              <div class="panel-body" id="rcAddonsBody"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Right: Live Summary -->
+        <div style="position:sticky;top:12px;align-self:start">
+          <div class="panel" style="overflow:hidden">
+            <div class="panel-head" style="background:linear-gradient(135deg,rgba(201,168,76,.08),transparent)">
+              <div>
+                <div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700">Quote Summary</div>
+                <div id="rcSummaryTitle" style="font-size:18px;font-weight:900;color:var(--accent);margin-top:4px"></div>
+              </div>
+            </div>
+            <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+              <div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Staff</div>
+              <div id="rcStaffPills" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+            <div style="padding:14px 16px" id="rcLineItems"></div>
+            <div style="padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,rgba(201,168,76,.06),transparent)">
+              <div>
+                <div class="muted" style="font-size:11px;font-weight:600">Due Day Of</div>
+                <div id="rcDiscountNote" style="font-size:10px;color:var(--good);margin-top:2px"></div>
+              </div>
+              <div style="text-align:right">
+                <div id="rcStrikethrough" style="font-size:12px;color:var(--muted);text-decoration:line-through"></div>
+                <div id="rcTotal" style="font-size:26px;font-weight:900;color:var(--accent)"></div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </section>
     <!-- SOPs -->
     <section id="sopsView" style="display:none;">
       <div class="panel">
@@ -1011,6 +1063,7 @@ function startApp(){
   else if(state.ui?.view==="leaderdash") renderLeaderDash();
   else if(state.ui?.view==="sops") renderSOPs();
   else if(state.ui?.view==="venues") renderVenueTracker();
+  else if(state.ui?.view==="rental") renderRentalCalc();
   else if(state.ui?.view==="audit") renderAudit();
   else if(state.selectedId) renderProfile();
   else renderHub();
@@ -2465,6 +2518,7 @@ function hideAllViews(){
   document.getElementById('auditView').style.display="none";
   document.getElementById('sopsView').style.display="none";
   document.getElementById('venueView').style.display="none";
+  document.getElementById('rentalCalcView').style.display="none";
 }
 
 function renderMgmtCal(){
@@ -3801,6 +3855,7 @@ document.getElementById('sideExport')?.addEventListener('click',exportBackup);
 document.getElementById('sideAudit')?.addEventListener('click',renderAudit);
 document.getElementById('sideSOPs')?.addEventListener('click',renderSOPs);
 document.getElementById('sideVenues')?.addEventListener('click',renderVenueTracker);
+document.getElementById('sideRental')?.addEventListener('click',renderRentalCalc);
 document.getElementById('addSopBtn')?.addEventListener('click',()=>openSopModal(null));
 document.getElementById('sideImportBackup')?.addEventListener('click',()=>document.getElementById('backupFile').click());
 document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
@@ -3808,7 +3863,7 @@ document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
 // Update sidebar active state
 function updateSidebarActive(view){
   document.querySelectorAll('.sidebar .nav-item').forEach(el=>el.classList.remove('active'));
-  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',templates:'sideTemplates',blacklist:'sideBlacklist'};
+  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',templates:'sideTemplates',blacklist:'sideBlacklist'};
   const id=map[view];
   if(id) document.getElementById(id)?.classList.add('active');
 }
@@ -3907,6 +3962,142 @@ function openSopModal(editId){
     auditLog('SOP '+(existing?'edited':'created'),entry.title);
     save();closeModal();renderSOPs();toast('SOP saved');
   });
+}
+
+
+// ═══════════════════════════════════════════
+// RENDER: RENTAL CALCULATOR
+// ═══════════════════════════════════════════
+const RC_PACKAGES=[
+  {name:'Paradise Lounge',price:80000},{name:'Vanilla Unicorn',price:70000},
+  {name:'Bahama Mamas',price:60000},{name:'Maisonette 10',price:50000},
+  {name:'Tequi-la-la',price:50000},{name:'Wiwang Sky Bar',price:50000},
+  {name:'Yellow Jack',price:40000},{name:'Black Woods Saloon',price:40000},
+  {name:'Sandy Biker Bar',price:40000},{name:'Split Sides Comedy Club',price:40000},
+  {name:'Custom Event',price:35000}
+];
+const RC_STAFF=[
+  {role:'Security',price:5000},{role:'Dancer',price:5000},
+  {role:'Bartender',price:5000},{role:'DJ',price:10000}
+];
+const rcFmt=(n)=>'$'+n.toLocaleString();
+
+// Rental calc state (non-persistent, resets each visit)
+let rcState={pkg:0,staff:{Security:0,Dancer:0,Bartender:0,DJ:0},heli:false,bus:false,discount:false};
+
+function renderRentalCalc(){
+  hideAllViews();
+  document.getElementById('rentalCalcView').style.display='';
+  state.ui.view='rental';save();
+  if(typeof updateSidebarActive==='function') updateSidebarActive('rental');
+
+  const grid=document.getElementById('rcPackageGrid');
+  grid.innerHTML=RC_PACKAGES.map((p,i)=>{
+    const sel=i===rcState.pkg;
+    return `<button data-rc-pkg="${i}" style="padding:10px 12px;border-radius:10px;border:1px solid ${sel?'rgba(201,168,76,.5)':'var(--line2)'};background:${sel?'rgba(201,168,76,.1)':'var(--surface)'};color:${sel?'var(--gold-hi)':'var(--text)'};cursor:pointer;text-align:left;font-family:inherit;font-size:12px">
+      <div style="font-weight:700">${escapeHtml(p.name)}</div>
+      <div style="font-size:11px;color:${sel?'var(--accent)':'var(--muted)'};margin-top:2px">${rcFmt(p.price)}</div>
+    </button>`;
+  }).join('');
+
+  // Staff inputs
+  const staffBody=document.getElementById('rcStaffBody');
+  staffBody.innerHTML=RC_STAFF.map(s=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
+      <div><span style="font-weight:600">${escapeHtml(s.role)}</span><span class="muted" style="font-size:11px;margin-left:4px">+${rcFmt(s.price)}</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button data-rc-staff-minus="${escapeHtml(s.role)}" class="btn-ghost" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px;border-radius:6px">−</button>
+        <span style="width:28px;text-align:center;font-weight:700;color:var(--accent)">${rcState.staff[s.role]}</span>
+        <button data-rc-staff-plus="${escapeHtml(s.role)}" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px;border-radius:6px;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.1);color:var(--accent);cursor:pointer">+</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Addons
+  const addonsBody=document.getElementById('rcAddonsBody');
+  const addons=[
+    {key:'heli',label:'Helicopter',sub:'$20,000',checked:rcState.heli},
+    {key:'bus',label:'Party Bus',sub:'$15,000 · includes DJ',checked:rcState.bus},
+  ];
+  addonsBody.innerHTML=addons.map(a=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;border-bottom:1px solid var(--line)">
+      <input type="checkbox" data-rc-addon="${a.key}" ${a.checked?'checked':''} style="accent-color:var(--accent);width:16px;height:16px"/>
+      <div>
+        <div style="font-size:13px;font-weight:600">${a.label}</div>
+        <div class="muted small">${a.sub}</div>
+      </div>
+    </label>
+  `).join('')+`
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" data-rc-addon="discount" ${rcState.discount?'checked':''} style="accent-color:var(--good);width:16px;height:16px"/>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--good)">Employee Discount</div>
+          <div class="muted small">15% off total</div>
+        </div>
+      </label>
+    </div>
+  `;
+
+  updateRentalSummary();
+
+  // Wire package buttons
+  document.querySelectorAll('[data-rc-pkg]').forEach(btn=>{
+    btn.addEventListener('click',()=>{rcState.pkg=+btn.getAttribute('data-rc-pkg');renderRentalCalc();});
+  });
+  // Wire staff +/-
+  document.querySelectorAll('[data-rc-staff-plus]').forEach(btn=>{
+    btn.addEventListener('click',()=>{const r=btn.getAttribute('data-rc-staff-plus');rcState.staff[r]++;renderRentalCalc();});
+  });
+  document.querySelectorAll('[data-rc-staff-minus]').forEach(btn=>{
+    btn.addEventListener('click',()=>{const r=btn.getAttribute('data-rc-staff-minus');rcState.staff[r]=Math.max(0,rcState.staff[r]-1);renderRentalCalc();});
+  });
+  // Wire addons
+  document.querySelectorAll('[data-rc-addon]').forEach(cb=>{
+    cb.addEventListener('change',()=>{
+      const k=cb.getAttribute('data-rc-addon');
+      if(k==='heli') rcState.heli=cb.checked;
+      else if(k==='bus') rcState.bus=cb.checked;
+      else if(k==='discount') rcState.discount=cb.checked;
+      updateRentalSummary();
+    });
+  });
+}
+
+function updateRentalSummary(){
+  const pkg=RC_PACKAGES[rcState.pkg];
+  const base=pkg.price;
+  const staffCost=Object.entries(rcState.staff).reduce((s,[k,v])=>s+v*RC_STAFF.find(x=>x.role===k).price,0);
+  const addonCost=(rcState.heli?20000:0)+(rcState.bus?15000:0);
+  const subtotal=base+staffCost+addonCost;
+  const total=rcState.discount?Math.round(subtotal*0.85):subtotal;
+  const saved=rcState.discount?subtotal-total:0;
+
+  const totalStaff={
+    Security:4+rcState.staff.Security,
+    Dancer:rcState.staff.Dancer,
+    Bartender:rcState.staff.Bartender,
+    DJ:rcState.staff.DJ+(rcState.bus?1:0)
+  };
+
+  // Title
+  document.getElementById('rcSummaryTitle').textContent=pkg.name;
+
+  // Staff pills
+  document.getElementById('rcStaffPills').innerHTML=Object.entries(totalStaff).filter(([,v])=>v>0).map(([k,v])=>`<span style="background:var(--accent-dim);border:1px solid var(--accent-mid);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--gold-hi)">${v} ${escapeHtml(k)}</span>`).join('');
+
+  // Line items
+  let lines=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Package</span><span style="color:var(--text)">${rcFmt(base)}</span></div>`;
+  if(staffCost>0) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Additional Staff</span><span style="color:var(--text)">+${rcFmt(staffCost)}</span></div>`;
+  if(rcState.heli) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Helicopter</span><span style="color:var(--text)">+${rcFmt(20000)}</span></div>`;
+  if(rcState.bus) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Party Bus + DJ</span><span style="color:var(--text)">+${rcFmt(15000)}</span></div>`;
+  if(rcState.discount) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--good)"><span>Employee (−15%)</span><span>−${rcFmt(saved)}</span></div>`;
+  document.getElementById('rcLineItems').innerHTML=lines;
+
+  // Total
+  document.getElementById('rcStrikethrough').textContent=rcState.discount?rcFmt(subtotal):'';
+  document.getElementById('rcTotal').textContent=rcFmt(total);
+  document.getElementById('rcDiscountNote').textContent=rcState.discount?'Employee discount applied':'';
 }
 
 function renderVenueTracker(){
@@ -4128,6 +4319,7 @@ document.getElementById('sideExport')?.addEventListener('click',exportBackup);
 document.getElementById('sideAudit')?.addEventListener('click',renderAudit);
 document.getElementById('sideSOPs')?.addEventListener('click',renderSOPs);
 document.getElementById('sideVenues')?.addEventListener('click',renderVenueTracker);
+document.getElementById('sideRental')?.addEventListener('click',renderRentalCalc);
 document.getElementById('addSopBtn')?.addEventListener('click',()=>openSopModal(null));
 document.getElementById('sideImportBackup')?.addEventListener('click',()=>document.getElementById('backupFile').click());
 document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
@@ -4135,7 +4327,7 @@ document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
 // Update sidebar active state
 function updateSidebarActive(view){
   document.querySelectorAll('.sidebar .nav-item').forEach(el=>el.classList.remove('active'));
-  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',templates:'sideTemplates',blacklist:'sideBlacklist'};
+  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',templates:'sideTemplates',blacklist:'sideBlacklist'};
   const id=map[view];
   if(id) document.getElementById(id)?.classList.add('active');
 }
@@ -4180,7 +4372,7 @@ function applyPermissions(){
   alwaysVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
 
   // Supervisor+: Hub, Hours, Shift Perf, Leadership, EOTM/Promo, Venues, Templates
-  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideTemplates'];
+  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideRental','sideTemplates'];
   supVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=(noAuth||isSup)?'':'none';});
 
   // Director only: Audit Log
