@@ -181,6 +181,9 @@
     .profile-two-col > .panel + .panel {
       margin-top: 0;
     }
+    .profile-section > * + * {
+      margin-top: 12px;
+    }
     .profile-two-col-panel {
       display: flex;
       flex-direction: column;
@@ -519,7 +522,7 @@
     </section>
 
     <!-- PROFILE -->
-    <section id="profileView" style="display:none;">
+    <section id="profileView" style="display:none;" class="profile-section">
       <div class="panel" id="profilePanel"></div>
       <div class="profile-two-col">
         <div class="panel profile-two-col-panel">
@@ -1104,7 +1107,7 @@ document.getElementById("modalBackdrop")?.addEventListener("click",e=>{ if(e.tar
 function ensurePerson(p){
   p.id||=uid(); p.steam||=""; p.steamName||=""; p.character||=""; p.callsign||="";
   p.discord||=""; p.discordId||=""; p.timeZone||=""; p.bankAccount||=""; p.rank||="";
-  p.employeeNumber||=""; p.stageName||=""; p.phone||="";
+  p.employeeNumber||=""; p.stageName||=""; p.phone||=""; p.email||="";
   p.training||={sop:{done:false,trainerId:"",date:"",comment:""},roles:{}};
   p.training.sop||={done:false,trainerId:"",date:"",comment:""};
   p.training.roles||={};
@@ -1412,16 +1415,11 @@ function managementTrainerOptions(){
 // RENDER: HUB
 // ═══════════════════════════════════════════
 function renderHub(){
+  hideAllViews();
   $("#hubView").style.display="";
-  $("#profileView").style.display="none";
-  $("#overviewView").style.display="none";
-  document.getElementById('reviewView').style.display="none";
-  document.getElementById('mgmtCalView').style.display="none";
-  document.getElementById('templatesView').style.display="none";
-  document.getElementById('shiftPerfView').style.display="none";
   state.ui.view="hub"; state.selectedId=null;
   state.monthCursor=new Date().toISOString();
-  save();
+  save(); if(typeof updateSidebarActive==="function") updateSidebarActive("hub");
 
   const q=($("#search").value||"").trim().toLowerCase();
   const sort=$("#sort").value;
@@ -1551,13 +1549,8 @@ function renderHub(){
 // RENDER: HOURS OVERVIEW
 // ═══════════════════════════════════════════
 function renderOverview(){
-  $("#hubView").style.display="none";
-  $("#profileView").style.display="none";
+  hideAllViews();
   $("#overviewView").style.display="";
-  document.getElementById('reviewView').style.display="none";
-  document.getElementById('mgmtCalView').style.display="none";
-  document.getElementById('templatesView').style.display="none";
-  document.getElementById('shiftPerfView').style.display="none";
   state.ui.view="overview"; save(); if(typeof updateSidebarActive==="function") updateSidebarActive("overview");
 
   const md=startOfMonth(new Date(state.overviewMonthCursor));
@@ -1652,15 +1645,8 @@ function renderProfile(){
   if(!p){renderHub();return;}
 
   state.ui.view="profile"; save();
-  $("#hubView").style.display="none";
+  hideAllViews();
   $("#profileView").style.display="";
-  $("#overviewView").style.display="none";
-  document.getElementById('reviewView').style.display="none";
-  document.getElementById('mgmtCalView').style.display="none";
-  document.getElementById('templatesView').style.display="none";
-  document.getElementById('shiftPerfView').style.display="none";
-  document.getElementById('blacklistView').style.display="none";
-  document.getElementById('leaderDashView').style.display="none";
 
   const monthDate=startOfMonth(new Date(state.profileMonthCursor));
   const monthly=computeMonthly(p.id,monthDate);
@@ -1711,6 +1697,7 @@ function renderProfile(){
     {k:'Discord ID',v:p.discordId||'—',copy:p.discordId},{k:'Steam ID',v:p.steam||'—',copy:p.steam},
     {k:'Timezone',v:p.timeZone||'—'},{k:'Bank ID',v:p.bankAccount||'—',copy:p.bankAccount},
     {k:'Phone',v:p.phone||'—',copy:p.phone},
+    {k:'Email',v:p.email||'—',copy:p.email},
   ];
   $("#basicInfo").innerHTML=`<div class="train-detail"><div class="train-detail-row" style="grid-template-columns:100px 1fr;border-bottom:1px solid var(--line2);padding-bottom:6px;margin-bottom:2px">
       <div class="muted" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Field</div>
@@ -2187,8 +2174,8 @@ function leadershipScore(pid, monthDate){
 
 function eotmScore(x){
   const hoursScore=Math.round(x.monthly.countedMs/(1000*60*60));
-  const posBoost=(x.counts.positives||0)*3;
-  const impPenalty=(x.counts.improvements||0)*5;
+  const posBoost=(x.counts.positives||0);
+  const impPenalty=(x.counts.improvements||0);
   return hoursScore+posBoost-impPenalty;
 }
 
@@ -2199,19 +2186,10 @@ function promoScore(x, monthDate){
   return score;
 }
 
-function isDisqualified(x){
-  return x.counts.strikes>0||x.counts.suspensions>0;
-}
-
 function renderReviewPage(){
   state.ui.view="review"; save(); if(typeof updateSidebarActive==="function") updateSidebarActive("review");
-  $("#hubView").style.display="none";
-  $("#profileView").style.display="none";
-  $("#overviewView").style.display="none";
+  hideAllViews();
   document.getElementById('reviewView').style.display="";
-  document.getElementById('mgmtCalView').style.display="none";
-  document.getElementById('templatesView').style.display="none";
-  document.getElementById('shiftPerfView').style.display="none";
 
   const monthDate=startOfMonth(new Date(state.monthCursor));
   const sub=document.getElementById('reviewSub');
@@ -2225,9 +2203,9 @@ function renderReviewPage(){
   if(tabE) tabE.className=`btn-${tab==='eotm'?'accent':'ghost'} btn-sm`;
   if(tabP) tabP.className=`btn-${tab==='promo'?'accent':'ghost'} btn-sm`;
 
-  const eotm=allStaff.filter(x=>!x.isMgmt && x.p.rank && !isDisqualified(x) && x.monthly.countedMs>=MONTHLY_MIN_MS)
+  const eotm=allStaff.filter(x=>!x.isMgmt && x.p.rank && x.monthly.countedMs>=MONTHLY_MIN_MS)
     .map(x=>({...x,score:eotmScore(x)})).sort((a,b)=>b.score-a.score).slice(0,10);
-  const promos=allStaff.filter(x=>x.monthly.countedMs>=MONTHLY_MIN_MS && !isDisqualified(x) && x.p.rank && !isMgmtRank(x.p.rank))
+  const promos=allStaff.filter(x=>x.monthly.countedMs>=MONTHLY_MIN_MS && x.p.rank && !isMgmtRank(x.p.rank))
     .map(x=>({...x,score:promoScore(x,monthDate)})).sort((a,b)=>b.score-a.score);
 
   function card(x,showMark=false,showPromote=false){
@@ -2235,51 +2213,32 @@ function renderReviewPage(){
     const currentRankIdx=RANKS.indexOf(x.p.rank);
     const nextRank=(currentRankIdx>=0 && currentRankIdx<RANKS.length-1)?RANKS[currentRankIdx+1]:null;
     const canPromote=showPromote && nextRank;
-    return `<div style="padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;background:var(--panel)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
-        <div><div style="font-weight:900">${escapeHtml(x.p.character||'')}</div>
-          <div class="muted small">${escapeHtml(x.p.rank||'—')}${canPromote?` → <span style="color:var(--gold-hi)">${escapeHtml(nextRank)}</span>`:''}</div></div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          ${x.loaNow?'<span class="pill loa">LOA</span>':''}
-          <span class="pill good">${escapeHtml(durLabel(x.monthly.countedMs))}</span>
-        </div>
+    return `<div style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--panel);overflow:hidden">
+      <div style="font-weight:900;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(x.p.character||'')}</div>
+      <div class="muted" style="font-size:11px;margin-top:1px">${escapeHtml(x.p.rank||'—')}${canPromote?` → <span style="color:var(--gold-hi)">${escapeHtml(nextRank)}</span>`:''}</div>
+      <div style="margin-top:8px"><span class="pill good" style="font-size:10px">${escapeHtml(durLabel(x.monthly.countedMs))}</span></div>
+      <div style="display:flex;gap:6px;margin-top:6px;font-size:10px;color:var(--muted);flex-wrap:wrap">
+        <span style="color:var(--good)">+${x.counts.positives||0}</span>
+        <span style="color:var(--warn)">\u25B3${x.counts.improvements||0}</span>
+        <span>S:${x.counts.strikes}</span>
+        <span>EOTM:${escapeHtml(lastE)}</span>
       </div>
-      <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);flex-wrap:wrap">
-        <span style="color:var(--good)">Positives: <b>${x.counts.positives||0}</b></span>
-        <span style="color:var(--warn)">Improve: <b>${x.counts.improvements||0}</b></span>
-        <span>Strikes: <b>${x.counts.strikes}</b></span>
-        <span>Warnings: <b>${x.counts.warnings}</b></span>
-        <span>Last EOTM: <b>${escapeHtml(lastE)}</b></span>
-        ${x.score!==undefined?`<span style="color:var(--accent)">Score: <b>${x.score}</b></span>`:''}
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px">
-        <button class="btn-ghost btn-sm" data-review-profile="${escapeHtml(x.p.id)}">View Profile</button>
-        ${showMark?`<button class="btn-accent btn-sm" data-mark-eotm="${escapeHtml(x.p.id)}">Mark EOTM</button>`:''}
-        ${canPromote&&canPromoteOrFire(x.p.id)?`<button class="btn-accent btn-sm" data-promote="${escapeHtml(x.p.id)}" data-promote-to="${escapeHtml(nextRank)}">Promote to ${escapeHtml(nextRank)}</button>`:''}
+      <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn-ghost btn-sm" data-review-profile="${escapeHtml(x.p.id)}" style="font-size:10px;padding:4px 8px">Profile</button>
+        ${showMark?`<button class="btn-accent btn-sm" data-mark-eotm="${escapeHtml(x.p.id)}" style="font-size:10px;padding:4px 8px">EOTM</button>`:''}
+        ${canPromote&&canPromoteOrFire(x.p.id)?`<button class="btn-accent btn-sm" data-promote="${escapeHtml(x.p.id)}" data-promote-to="${escapeHtml(nextRank)}" style="font-size:10px;padding:4px 8px">Promote</button>`:''}
       </div>
     </div>`;
   }
 
   let html='';
-  // Point system legend (EOTM tab only)
-  if(tab==='eotm') html+=`<div style="padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;background:var(--panel2)">
-    <div style="font-weight:700;font-size:12px;margin-bottom:6px;color:var(--accent)">Scoring System</div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted)">
-      <span><b style="color:var(--text)">+1</b> per hour worked</span>
-      <span><b style="color:var(--good)">+3</b> per positive feedback</span>
-      <span><b style="color:var(--bad)">−5</b> per improvement note</span>
-      <span><b style="color:var(--warn)">+3</b> per event led <span style="font-size:10px">(Sup+ only)</span></span>
-      <span><b style="color:var(--warn)">+2</b> per event attended <span style="font-size:10px">(Sup+ only)</span></span>
-    </div>
-    <div style="font-size:10px;color:var(--muted);margin-top:4px">Strikes or suspensions = disqualified. Managers/Supervisors reviewed via Leadership profiles, not here.</div>
-  </div>`;
 
   if(tab==='eotm'){
-    html+=`<div class="hint" style="margin-bottom:10px"><b>Top 10</b> by performance score. Strikes/suspensions disqualify. Management excluded.</div>`;
-    html+=eotm.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">`+eotm.map(x=>card(x,true,false)).join('')+`</div>`:`<div class="muted">No candidates yet.</div>`;
+    html+=`<div class="hint" style="margin-bottom:10px"><b>Top 10</b> — met shift minimum. Management excluded.</div>`;
+    html+=eotm.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">`+eotm.map(x=>card(x,true,false)).join('')+`</div>`:`<div class="muted">No candidates yet.</div>`;
   } else if(tab==='promo'){
-    html+=`<div class="hint" style="margin-bottom:10px"><b>Eligible</b> for promotion — met shift minimum, no strikes/suspensions. Managers/Supervisors use Leadership profiles.</div>`;
-    html+=promos.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">`+promos.map(x=>card(x,false,true)).join('')+`</div>`:`<div class="muted">No one meets the baseline yet.</div>`;
+    html+=`<div class="hint" style="margin-bottom:10px"><b>Eligible</b> for promotion — met shift minimum. Managers/Supervisors reviewed via Leadership profiles.</div>`;
+    html+=promos.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">`+promos.map(x=>card(x,false,true)).join('')+`</div>`:`<div class="muted">No one meets the baseline yet.</div>`;
   }
 
   $("#reviewBody").innerHTML=html;
@@ -2336,7 +2295,7 @@ function editBasics(){
     <div class="row" style="margin-top:8px"><div><div class="muted small">Timezone</div><input id="e_tz" value="${escapeHtml(p.timeZone||'')}"></div>
     <div><div class="muted small">Bank ID</div><input id="e_bank" value="${escapeHtml(p.bankAccount||'')}"></div></div>
     <div class="row" style="margin-top:8px"><div><div class="muted small">Phone #</div><input id="e_phone" value="${escapeHtml(p.phone||'')}"></div>
-    <div></div></div>
+    <div><div class="muted small">Email</div><input id="e_email" type="email" value="${escapeHtml(p.email||'')}" placeholder="name@gmail.com"></div></div>
     <div class="hint" style="margin-top:10px">Steam fields update from CSV import only.</div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-accent" id="e_save">Save</button></div>
   `);
@@ -2347,6 +2306,7 @@ function editBasics(){
     p.discord=($("#e_discord").value||'').trim(); p.discordId=($("#e_discordId").value||'').trim();
     p.timeZone=($("#e_tz").value||'').trim(); p.bankAccount=($("#e_bank").value||'').trim();
     p.phone=($("#e_phone").value||'').trim();
+    p.email=($("#e_email").value||'').trim();
     auditLog('Profile edited',p.character||p.id);
     save();closeModal();renderProfile();
   });
