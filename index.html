@@ -1314,11 +1314,22 @@ function startApp(){
   // Hide loading overlay
   const lo = document.getElementById('loadingOverlay');
   if(lo) lo.style.display='none';
-  // Re-evaluate bootstrap visibility now that Firestore data is loaded
-  if(_authUser && !state.loggedInAs){
-    const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
-    const bsDiv = document.getElementById('bootstrapSetup');
-    if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
+  // Re-run auth matching now that Firestore data is loaded.
+  // onAuthStateChanged fires on page load before people are fetched, so
+  // a returning signed-in user may have been locked out with state.people=[].
+  if(_authUser){
+    const match = state.people.find(p=>p.email && p.email.toLowerCase()===_authUser.email.toLowerCase());
+    if(match){
+      state.loggedInAs = match.id;
+      document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
+      document.getElementById('bootstrapSetup').style.display='none';
+      save();
+      unlockApp();
+    } else if(!state.loggedInAs){
+      const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
+      const bsDiv = document.getElementById('bootstrapSetup');
+      if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
+    }
   }
 
   // Auto-archive Unknown/empty character names
