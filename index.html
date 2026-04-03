@@ -1004,9 +1004,10 @@ function save(){
     return;
   }
 
+  justSaved = Date.now(); // Block sync echo IMMEDIATELY, not after debounce
   clearTimeout(save._t);
   save._t = setTimeout(()=>{
-    justSaved = Date.now();
+    justSaved = Date.now(); // Refresh timestamp at actual write time
     dbRef.set(state).then(()=>{
       clearTimeout(save._t2);
       save._t2=setTimeout(()=>{ justSaved = 0; },2000);
@@ -1042,7 +1043,7 @@ dbRef.on('value', snap => {
     if(updated) currentUserObj = updated;
   }
 
-  try{ startApp(); }catch(e){ console.warn("Re-render after sync:", e); }
+  try{ startApp(); applyCollapseState(); }catch(e){ console.warn("Re-render after sync:", e); }
   toast("Synced from another user");
 });
 
@@ -3173,7 +3174,7 @@ function openMgmtEventModal(existing, prefillDate){
   const ledByVal=isEdit?existing.ledBy||'':'';
 
   const allPeople=state.people.filter(p=>!p.archived).map(p=>{ensurePerson(p);return p;}).sort((a,b)=>(a.character||'').localeCompare(b.character||''));
-  const venueOpts=VENUE_EVENT_TYPES.map(v=>`<option value="${escapeHtml(v.value)}" ${v.value===venueTypeVal?'selected':''}>${escapeHtml(v.label)}</option>`).join('');
+  const venueOpts=`<option value="">— Select venue —</option>`+VENUE_EVENT_TYPES.map(v=>`<option value="${escapeHtml(v.value)}" ${v.value===venueTypeVal?'selected':''}>${escapeHtml(v.label)}</option>`).join('');
   const trainRoleOpts=[...FIXED_ROLES].map(r=>`<option value="${escapeHtml(r)}" ${r===trainingRole?'selected':''}>${escapeHtml(r)}</option>`).join('');
 
   function rosterCard(pid,role,positives,improvements){
@@ -3962,7 +3963,7 @@ function renderLeaderDash(){
   // Compute stats per person
   const stats=leaders.map(p=>{
     let ledEvents=0,ledTrainings=0,ledInterviews=0;
-    let attTrainings=0,attInterviews=0;
+    let attOpenings=0,attTrainings=0,attInterviews=0;
     const ledList=[],attList=[];
 
     for(const me of evts){
@@ -3971,11 +3972,16 @@ function renderLeaderDash(){
       const isAttended=(me.attendedBy||[]).includes(p.id)||(me.taggedSupers||[]).includes(p.id)||(me.taggedSeniors||[]).includes(p.id);
       const dateStr=fmtMDY(new Date(me.dateISO));
 
-      if(me.type==='event'&&(isLed||isOnRoster)){
-        ledEvents++;
-        const label=me.venueTitle||venueTypeLabel(me.venueType||'');
-        const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
-        ledList.push({date:dateStr,type:'Opening',label,color,cancelled:!!me.cancelled,rosterCount:(me.roster||[]).length});
+      if(me.type==='event'){
+        if(isLed){
+          ledEvents++;
+          const label=me.venueTitle||venueTypeLabel(me.venueType||'');
+          const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
+          ledList.push({date:dateStr,type:'Opening',label,color,cancelled:!!me.cancelled,rosterCount:(me.roster||[]).length});
+        } else if(isOnRoster){
+          attOpenings++;
+          attList.push({date:dateStr,type:'Opening',label:me.venueTitle||venueTypeLabel(me.venueType||''),color:venueTypeColor(me.venueType||''),ledBy:me.ledBy?personLabel(me.ledBy):'—'});
+        }
       }
       if(me.type==='training'){
         if(isLed){ledTrainings++;ledList.push({date:dateStr,type:'Training',label:'Training',color:'#6ec0cc',rosterCount:(me.roleTrainees?Object.values(me.roleTrainees).flat().length:(me.taggedTrainees||[]).length)});}
@@ -3988,13 +3994,13 @@ function renderLeaderDash(){
     }
 
     const ledTotal=ledEvents+ledTrainings+ledInterviews;
-    const attTotal=attTrainings+attInterviews;
+    const attTotal=attOpenings+attTrainings+attInterviews;
     const total=ledTotal+attTotal;
 
     // Get recent notes
     const notes=(state.notesEntries||[]).filter(n=>n.personId===p.id).sort((a,b)=>(b.dateISO||'').localeCompare(a.dateISO||'')).slice(0,5);
 
-    return {p,ledEvents,ledTrainings,ledInterviews,attTrainings,attInterviews,ledTotal,attTotal,total,ledList,attList,notes};
+    return {p,ledEvents,ledTrainings,ledInterviews,attOpenings,attTrainings,attInterviews,ledTotal,attTotal,total,ledList,attList,notes};
   }).sort((a,b)=>b.total-a.total);
 
   let html=`<div class="muted small" style="font-weight:700;margin-bottom:12px">${escapeHtml(rangeLabel)} · ${leaders.length} leadership staff</div>`;
@@ -4002,7 +4008,7 @@ function renderLeaderDash(){
 
   for(const s of stats){
     const activeColor=s.total>0?'var(--gold-hi)':'var(--muted)';
-    html+=`<div class="card" style="cursor:pointer;padding:10px 12px;gap:8px" data-ldash-pid="${escapeHtml(s.p.id)}">
+    html+=`<div class="card" style="cursor:pointer;padding:10px 12px;gap:6px" data-ldash-pid="${escapeHtml(s.p.id)}">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <span style="font-weight:900;font-size:13px">${escapeHtml(s.p.character||'(no name)')}</span>
@@ -4010,11 +4016,23 @@ function renderLeaderDash(){
         </div>
         <span style="font-size:18px;font-weight:900;color:${activeColor}">${s.total}</span>
       </div>
-      <div style="display:flex;gap:12px;font-size:11px;color:var(--muted)">
-        <span>Led: <b style="color:var(--gold-hi)">${s.ledEvents}</b> opens · <b style="color:#6ec0cc">${s.ledTrainings}</b> train · <b style="color:#cc7a6a">${s.ledInterviews}</b> int</span>
-      </div>
-      <div style="display:flex;gap:12px;font-size:11px;color:var(--muted)">
-        <span>Attended: <b style="color:#6ec0cc">${s.attTrainings}</b> train · <b style="color:#cc7a6a">${s.attInterviews}</b> int</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+        <div style="background:var(--surface);border-radius:6px;padding:6px 8px">
+          <div style="font-weight:700;color:var(--gold-hi);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Led (${s.ledTotal})</div>
+          <div style="display:flex;gap:8px">
+            <span title="Openings" style="color:var(--accent)">${s.ledEvents} <span style="color:var(--muted);font-size:10px">opens</span></span>
+            <span title="Trainings" style="color:#6ec0cc">${s.ledTrainings} <span style="color:var(--muted);font-size:10px">train</span></span>
+            <span title="Interviews" style="color:#cc7a6a">${s.ledInterviews} <span style="color:var(--muted);font-size:10px">int</span></span>
+          </div>
+        </div>
+        <div style="background:var(--surface);border-radius:6px;padding:6px 8px">
+          <div style="font-weight:700;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Attended (${s.attTotal})</div>
+          <div style="display:flex;gap:8px">
+            <span title="Openings" style="color:var(--accent)">${s.attOpenings} <span style="color:var(--muted);font-size:10px">opens</span></span>
+            <span title="Trainings" style="color:#6ec0cc">${s.attTrainings} <span style="color:var(--muted);font-size:10px">train</span></span>
+            <span title="Interviews" style="color:#cc7a6a">${s.attInterviews} <span style="color:var(--muted);font-size:10px">int</span></span>
+          </div>
+        </div>
       </div>
     </div>`;
   }
