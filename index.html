@@ -409,7 +409,7 @@
   </style>
   <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
@@ -467,6 +467,14 @@
     </div>
   </nav>
   <div class="app-content">
+  <!-- Login overlay -->
+  <div id="loginOverlay" style="position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+    <div style="font-size:22px;font-weight:900;color:var(--accent)">Vanilla Unicorn</div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:8px">Staff Tracker — Sign in to continue</div>
+    <button class="btn-accent" id="loginBtn" style="padding:12px 24px;font-size:14px;font-weight:900;border-radius:10px">Sign in with Google</button>
+    <div id="loginLoading" style="display:none;color:var(--muted);font-size:12px">Signing in...</div>
+    <div id="loginError" style="display:none;color:var(--bad);font-size:12px;max-width:400px;text-align:center"></div>
+  </div>
   <!-- Loading overlay -->
   <div id="loadingOverlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:30">
     <div style="text-align:center">
@@ -807,23 +815,39 @@
 const firebaseConfig = {
   apiKey: "AIzaSyDjIgEXGghQ8tYHOTOw7gjXmCiXYex30pQ",
   authDomain: "vv-database-8ac24.firebaseapp.com",
+  databaseURL: "https://vv-database-8ac24-default-rtdb.firebaseio.com",
   projectId: "vv-database-8ac24",
   storageBucket: "vv-database-8ac24.firebasestorage.app",
   messagingSenderId: "1059299536987",
   appId: "1:1059299536987:web:8b04a0897af4e6618bcf7e"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = firebase.database();
+const dbRef = db.ref('vuTracker');
 const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// ═══════════════════════════════════════════
+// CONNECTION MONITORING
+// ═══════════════════════════════════════════
+let fbConnected = false;
+let pendingSave = false;
+
+db.ref('.info/connected').on('value', snap => {
+  fbConnected = !!snap.val();
+  if(fbConnected && pendingSave){
+    pendingSave = false;
+    save();
+  }
+});
 
 // ═══════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════
-const STORE_KEY = "vuTracker.ui.v1"; // UI-only prefs now
+const STORE_KEY = "vuTracker.local.v1";
 const TZ = "America/Chicago";
 
 const MIN_SHIFT_MINUTES = 30;
-// Activity requirement: 1 shift per month = 30 min
 const MONTHLY_MIN_MS = MIN_SHIFT_MINUTES * 60 * 1000;
 
 const FIXED_ROLES = ["Dancer","Security","Bartender","DJ"];
@@ -833,6 +857,7 @@ const MGMT_RANKS = ["Supervisor","Manager","Director"];
 
 function isMgmtRank(rank){ const r=(rank||'').trim(); return MGMT_RANKS.some(m=>m.toLowerCase()===r.toLowerCase()); }
 function isSeniorPlus(rank){ const r=(rank||'').trim().toLowerCase(); return ['senior employee','supervisor','manager','director'].some(x=>x===r); }
+
 // ═══════════════════════════════════════════
 // TIMEZONE HELPERS
 // ═══════════════════════════════════════════
@@ -911,48 +936,375 @@ function isSupMgr(rank){ const r=(rank||'').trim().toLowerCase(); return ['super
 // ═══════════════════════════════════════════
 // PERMISSION SYSTEM
 // ═══════════════════════════════════════════
-function currentUser(){
-  const pid=state.loggedInAs||'';
-  return pid?getPerson(pid):null;
-}
-function currentRank(){
-  const u=currentUser();
-  return u?u.rank||'':'';
-}
+let currentUserObj = null; // the matched person object
+let currentAuth = null; // the Firebase auth user
+
+function currentUser(){ return currentUserObj; }
+function currentRank(){ return currentUserObj?currentUserObj.rank||'':''; }
+
 function rankLevel(rank){
   const r=(rank||'').trim();
   const idx=RANKS.indexOf(r);
   return idx===-1?-1:idx;
 }
-function canEdit(){
-  // Supervisor+ can edit
-  if(!currentUser()) return false;
-  return rankLevel(currentRank())>=2;
+function canEdit(){ if(DEV_MODE) return true; if(!currentUserObj) return false; return rankLevel(currentRank())>=2; }
+function canView(){ if(DEV_MODE) return true; return !!currentUserObj; }
+function canViewProfile(targetPid){ if(DEV_MODE) return true; if(!currentUserObj) return false; if(rankLevel(currentUserObj.rank)>=2) return true; return currentUserObj.id===targetPid; }
+function canPromoteOrFire(targetPid){ if(DEV_MODE) return true; if(!currentUserObj) return false; const target=getPerson(targetPid); if(!target) return false; const myLevel=rankLevel(currentUserObj.rank); const theirLevel=rankLevel(target.rank); if(myLevel>=4) return true; if(myLevel>=2) return theirLevel<myLevel; return false; }
+function isViewOnly(){ if(DEV_MODE) return false; if(!currentUserObj) return true; return rankLevel(currentUserObj.rank)<2; }
+
+function findPersonByEmail(email){
+  if(!email) return null;
+  const e = email.toLowerCase().trim();
+  return state.people.find(p => (p.email||'').toLowerCase().trim() === e) || null;
 }
-function canView(){
-  return !!currentUser();
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+function seed(){
+  return {
+    version:1, monthCursor:new Date().toISOString(), profileMonthCursor:new Date().toISOString(),
+    overviewMonthCursor:new Date().toISOString(), mgmtMonthCursor:new Date().toISOString(),
+    selectedId:null,
+    ui:{inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"},
+    people:[], clockEvents:[], loas:[], entries:[], notesEntries:[], eotmHistory:[],
+    calendarEvents:[], trainingNotes:[], mgmtEvents:[], shiftTags:[], templates:[],
+    blacklist:[], sops:[], auditLog:[]
+  };
 }
-function canViewProfile(targetPid){
-  const me=currentUser();
-  if(!me) return false; // not logged in = no access
-  if(rankLevel(me.rank)>=2) return true; // Supervisor+ sees all
-  return me.id===targetPid; // Employee/Senior sees own only
+
+function ensureState(data){
+  if(!data||!Array.isArray(data.people)) return seed();
+  data.clockEvents||=[];data.loas||=[];data.entries||=[];data.notesEntries||=[];data.eotmHistory||=[];
+  data.calendarEvents||=[];data.trainingNotes||=[];data.mgmtEvents||=[];data.shiftTags||=[];data.templates||=[];
+  data.blacklist||=[];data.sops||=[];data.auditLog||=[];
+  data.ui||={inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"};
+  data.ui.reviewTab||="eotm"; data.ui.view||="hub";
+  data.profileMonthCursor||=data.monthCursor||new Date().toISOString();
+  data.overviewMonthCursor||=data.overviewMonthCursor||new Date().toISOString();
+  data.mgmtMonthCursor||=data.monthCursor||new Date().toISOString();
+  return data;
 }
-function canPromoteOrFire(targetPid){
-  const me=currentUser();
-  if(!me) return false; // not logged in = no access
-  const target=getPerson(targetPid);
-  if(!target) return false;
-  const myLevel=rankLevel(me.rank);
-  const theirLevel=rankLevel(target.rank);
-  if(myLevel>=4) return true; // Director = god mode
-  if(myLevel>=2) return theirLevel<myLevel; // Can only affect lower ranks
-  return false;
+
+let state = seed();
+let firebaseReady = false;
+let justSaved = 0;
+
+const DEV_MODE = new URLSearchParams(window.location.search).has('dev');
+
+// ═══════════════════════════════════════════
+// SAVE — debounced write to Realtime Database
+// ═══════════════════════════════════════════
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch{}
+
+  if(!fbConnected){
+    pendingSave = true;
+    return;
+  }
+
+  clearTimeout(save._t);
+  save._t = setTimeout(()=>{
+    justSaved = Date.now();
+    dbRef.set(state).then(()=>{
+      clearTimeout(save._t2);
+      save._t2=setTimeout(()=>{ justSaved = 0; },2000);
+    }).catch(err=>{
+      console.error("Firebase save error:",err);
+      toast('Save failed — check connection');
+      pendingSave = true;
+    });
+  }, 400);
 }
-function isViewOnly(){
-  const me=currentUser();
-  if(!me) return true; // not logged in = view only at best
-  return rankLevel(me.rank)<2;
+
+// ═══════════════════════════════════════════
+// REALTIME SYNC — picks up other users' saves
+// ═══════════════════════════════════════════
+const UI_KEYS = ['selectedId','ui','monthCursor','profileMonthCursor','overviewMonthCursor','mgmtMonthCursor'];
+
+dbRef.on('value', snap => {
+  if(!firebaseReady) return;
+  if(Date.now() - justSaved < 3000) return;
+
+  const incoming = snap.val();
+  if(!incoming || !Array.isArray(incoming.people)) return;
+
+  const myUI = {};
+  for(const k of UI_KEYS) myUI[k] = state[k];
+
+  state = ensureState(incoming);
+
+  for(const k of UI_KEYS) if(myUI[k] !== undefined) state[k] = myUI[k];
+
+  if(currentUserObj){
+    const updated = state.people.find(p => p.id === currentUserObj.id);
+    if(updated) currentUserObj = updated;
+  }
+
+  try{ startApp(); }catch(e){ console.warn("Re-render after sync:", e); }
+  toast("Synced from another user");
+});
+
+// ═══════════════════════════════════════════
+// BOOT — data first, then auth
+// ═══════════════════════════════════════════
+function boot(){
+  showLoginOverlay();
+
+  const bootTimeout = setTimeout(()=>{
+    console.warn("Firebase boot timed out after 10s");
+    try{ const local=localStorage.getItem(STORE_KEY); if(local) state=ensureState(JSON.parse(local)); }catch{}
+    firebaseReady=true;
+    pendingSave=true;
+    initAuth();
+  }, 10000);
+
+  dbRef.once('value').then(snap=>{
+    clearTimeout(bootTimeout);
+    const data=snap.val();
+    if(data && data.people){
+      state=ensureState(data);
+      firebaseReady=true;
+    } else {
+      // Try localStorage migration
+      let migrated=false;
+      try{
+        const local=localStorage.getItem(STORE_KEY);
+        if(local){
+          const parsed=JSON.parse(local);
+          if(parsed&&Array.isArray(parsed.people)){
+            state=ensureState(parsed);
+            dbRef.set(state);
+            migrated=true;
+          }
+        }
+      }catch{}
+      if(!migrated) state=seed();
+      firebaseReady=true;
+    }
+    initAuth();
+  }).catch(err=>{
+    clearTimeout(bootTimeout);
+    console.error("Firebase load error:",err);
+    try{ const local=localStorage.getItem(STORE_KEY); if(local) state=ensureState(JSON.parse(local)); }catch{}
+    firebaseReady=true;
+    pendingSave=true;
+    initAuth();
+  });
+}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function showLoginOverlay(){ document.getElementById('loginOverlay').style.display='flex'; }
+function hideLoginOverlay(){ document.getElementById('loginOverlay').style.display='none'; }
+
+function showSetupFlow(user){
+  const overlay=document.getElementById('loginOverlay');
+  const mgmt=state.people.filter(p=>!p.archived&&isMgmtRank(p.rank)).sort((a,b)=>(a.character||'').localeCompare(b.character||''));
+  const allPeople=state.people.filter(p=>!p.archived).sort((a,b)=>(a.character||'').localeCompare(b.character||''));
+  const list=mgmt.length?mgmt:allPeople;
+
+  const opts=list.map(p=>{
+    ensurePerson(p);
+    return `<option value="${escapeHtml(p.id)}">${escapeHtml(p.character||p.steamName||'Unknown')} — ${escapeHtml(p.rank||'No rank')}</option>`;
+  }).join('');
+
+  overlay.innerHTML=`
+    <div style="font-size:22px;font-weight:900;color:var(--accent);margin-bottom:8px">First-Time Setup</div>
+    <div style="color:var(--muted);font-size:13px;text-align:center;max-width:400px;margin-bottom:12px">
+      No accounts are linked yet. Select your profile to connect <b>${escapeHtml(user.email)}</b> to the tracker. This is a one-time setup.
+    </div>
+    <select id="setupPerson" style="min-width:260px;padding:10px;font-size:13px">${opts}</select>
+    <button class="btn-accent" id="setupConfirm" style="padding:12px 24px;font-size:14px;font-weight:900;border-radius:10px;margin-top:8px">Link My Account</button>
+    <div id="setupError" style="display:none;color:var(--bad);font-size:12px;margin-top:8px"></div>
+  `;
+
+  document.getElementById('setupConfirm').addEventListener('click',()=>{
+    const pid=document.getElementById('setupPerson').value;
+    if(!pid){document.getElementById('setupError').style.display='block';document.getElementById('setupError').textContent='Pick your profile.';return;}
+    const p=getPerson(pid);
+    if(!p) return;
+    p.email=user.email;
+    save();
+    currentUserObj=p;
+    ensurePerson(currentUserObj);
+    hideLoginOverlay();
+    applyPermissions();
+    startApp();
+    toast('Account linked!');
+  });
+}
+
+function initAuth(){
+  // Dev mode: skip auth, full access
+  if(DEV_MODE){
+    hideLoginOverlay();
+    const lo=document.getElementById('loadingOverlay');if(lo)lo.style.display='none';
+    startApp();
+    return;
+  }
+
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      currentAuth=user;
+      const person=findPersonByEmail(user.email);
+      if(person){
+        currentUserObj=person;
+        ensurePerson(currentUserObj);
+        hideLoginOverlay();
+        const lo=document.getElementById('loadingOverlay');if(lo)lo.style.display='none';
+        updateAuthDisplay();
+        applyPermissions();
+        startApp();
+      } else {
+        // First-time setup if no emails linked yet
+        const anyLinked=state.people.some(p=>(p.email||'').trim());
+        if(!anyLinked && state.people.length>0){
+          showSetupFlow(user);
+        } else {
+          const errEl=document.getElementById('loginError');
+          if(errEl){
+            errEl.style.display='block';
+            errEl.innerHTML='No staff profile linked to <b>'+escapeHtml(user.email)+'</b>. Contact a Director to add your Google email to your profile.';
+          }
+          document.getElementById('loginLoading').style.display='none';
+          document.getElementById('loginBtn').style.display='';
+        }
+      }
+    } else {
+      currentAuth=null;
+      currentUserObj=null;
+      showLoginOverlay();
+      document.getElementById('loginLoading').style.display='none';
+      document.getElementById('loginBtn').style.display='';
+      const errEl=document.getElementById('loginError');
+      if(errEl) errEl.style.display='none';
+    }
+  });
+
+  document.getElementById('loginBtn').addEventListener('click',()=>{
+    document.getElementById('loginBtn').style.display='none';
+    document.getElementById('loginLoading').style.display='block';
+    document.getElementById('loginError').style.display='none';
+    auth.signInWithPopup(googleProvider).catch(err=>{
+      console.error('Sign-in error:',err);
+      document.getElementById('loginLoading').style.display='none';
+      document.getElementById('loginBtn').style.display='';
+      const errEl=document.getElementById('loginError');
+      if(errEl){errEl.style.display='block';errEl.textContent='Sign-in failed. Try again.';}
+    });
+  });
+}
+
+function updateAuthDisplay(){
+  const signedOutEl = document.getElementById('authSignedOut');
+  const signedInEl = document.getElementById('authSignedIn');
+  if(currentUserObj && currentAuth){
+    if(signedOutEl) signedOutEl.style.display='none';
+    if(signedInEl) signedInEl.style.display='';
+    const nameEl=document.getElementById('authUserName');
+    if(nameEl) nameEl.textContent=currentUserObj.character||currentAuth.displayName||currentAuth.email;
+    const roleEl=document.getElementById('authUserRole');
+    if(roleEl) roleEl.textContent=currentUserObj.rank||'Staff';
+  } else {
+    if(signedOutEl) signedOutEl.style.display='';
+    if(signedInEl) signedInEl.style.display='none';
+  }
+}
+
+function applyPermissions(){
+  if(DEV_MODE || !currentUserObj){
+    // Dev mode or not logged in: show everything
+    document.querySelectorAll('[data-perm-edit]').forEach(el=>el.style.display='');
+    document.querySelectorAll('[data-perm-view-only]').forEach(el=>el.style.display='none');
+    ['sideMgmtCal','sideBlacklist','sideSOPs','sideHub','sideHours','sideShiftPerf',
+     'sideLeader','sidePromo','sideVenues','sideRental','sideTemplates','sideAudit',
+     'sideImportCSV','sideImport','sideExport','sideImportBackup','sideAddPerson'
+    ].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+    return;
+  }
+  const rl=rankLevel(currentUserObj.rank);
+  const isEmpSenior=rl<2;
+  const isSup=rl>=2;
+  const isDir=rl>=4;
+
+  document.querySelectorAll('[data-perm-edit]').forEach(el=>{el.style.display=isSup?'':'none';});
+  document.querySelectorAll('[data-perm-view-only]').forEach(el=>{el.style.display=isEmpSenior?'':'none';});
+
+  const alwaysVisible=['sideMgmtCal','sideBlacklist','sideSOPs'];
+  alwaysVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+
+  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideRental','sideTemplates'];
+  supVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
+
+  const dirVisible=['sideAudit'];
+  dirVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isDir?'':'none';});
+
+  const dataVisible=['sideImportCSV','sideImport','sideExport','sideImportBackup'];
+  dataVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
+
+  const addP=document.getElementById('sideAddPerson');
+  if(addP) addP.style.display=isSup?'':'none';
+
+  if(isEmpSenior){
+    const allowed=['blacklist','sops','mgmtcal','profile'];
+    if(!allowed.includes(state.ui?.view)){
+      state.selectedId=currentUserObj.id;state.ui.view='profile';save();renderProfile();return;
+    }
+    if(state.ui?.view==='profile'&&state.selectedId&&state.selectedId!==currentUserObj.id){
+      state.selectedId=currentUserObj.id;save();renderProfile();return;
+    }
+  }
+}
+
+// Helper for populateLoginSelect calls throughout the code — now a no-op
+function populateLoginSelect(){}
+
+function updateEmployeeCount(){
+  const countEl=document.getElementById('sideEmployeeCount');
+  if(countEl){
+    const totalActive=state.people.filter(p=>!p.archived).length;
+    countEl.textContent=totalActive+' active employee'+(totalActive!==1?'s':'');
+  }
+}
+
+function startApp(){
+  const lo = document.getElementById('loadingOverlay');
+  if(lo) lo.style.display='none';
+
+  updateEmployeeCount();
+
+  // Auto-archive Unknown/empty character names
+  let cleaned=false;
+  for(const p of state.people){
+    if(!p.archived && (!p.character || p.character.toLowerCase()==='unknown')){
+      p.archived=true; cleaned=true;
+    }
+  }
+  if(cleaned) save();
+
+  if(currentUserObj && isViewOnly()){
+    if(state.ui?.view==='sops'){ renderSOPs(); return; }
+    if(state.ui?.view==='blacklist'){ renderBlacklist(); return; }
+    if(state.ui?.view==='mgmtcal'){ renderMgmtCal(); return; }
+    state.selectedId=currentUserObj.id; state.ui.view='profile'; renderProfile(); return;
+  }
+
+  if(state.ui?.view==="review") renderReviewPage();
+  else if(state.ui?.view==="overview") renderOverview();
+  else if(state.ui?.view==="mgmtcal") renderMgmtCal();
+  else if(state.ui?.view==="templates") renderTemplates();
+  else if(state.ui?.view==="shiftperf") renderShiftPerf();
+  else if(state.ui?.view==="blacklist") renderBlacklist();
+  else if(state.ui?.view==="leaderdash") renderLeaderDash();
+  else if(state.ui?.view==="sops") renderSOPs();
+  else if(state.ui?.view==="venues") renderVenueTracker();
+  else if(state.ui?.view==="rental") renderRentalCalc();
+  else if(state.ui?.view==="audit") renderAudit();
+  else if(state.selectedId) renderProfile();
+  else renderHub();
 }
 
 // ═══════════════════════════════════════════
@@ -983,355 +1335,14 @@ function endOfMonth(d){ const x=new Date(d); x.setMonth(x.getMonth()+1); x.setDa
 function fmtMonthLabel(d){ return new Intl.DateTimeFormat("en-US",{month:"long",year:"numeric"}).format(d); }
 function toLocalISODate(iso){
   const d=new Date(iso);
-  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
-  return `${p.find(x=>x.type==="year").value}-${p.find(x=>x.type==="month").value}-${p.find(x=>x.type==="day").value}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-function formatLocal(iso){
-  if(!iso) return "";
-  return new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"2-digit",day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(iso));
-}
+function dateValueFromISO(iso){ if(!iso) return ''; try{ const d=new Date(iso); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }catch{ return ''; } }
+function isoFromDateValue(dv){ if(!dv) return ''; const d=new Date(dv+'T12:00:00'); return d.toISOString(); }
+function fmtMDY(d){ return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; }
 function durLabel(ms){
-  const m=Math.max(0,Math.round(ms/(1000*60))); const h=Math.floor(m/60); const mn=m%60;
-  if(h<=0) return `${mn}m`; if(mn===0) return `${h}h`; return `${h}h ${mn}m`;
-}
-function daysSince(iso){ return iso ? (Date.now()-new Date(iso).getTime())/(1000*60*60*24) : Infinity; }
-function fmtMDY(d){ const dt=d instanceof Date?d:new Date(d); return `${String(dt.getMonth()+1).padStart(2,"0")}/${String(dt.getDate()).padStart(2,"0")}/${dt.getFullYear()}`; }
-function dateValueFromISO(iso){
-  if(!iso) return "";
-  // If it's already a plain YYYY-MM-DD, return as-is
-  if(/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  // Parse timezone-aware to local date parts
-  const d=new Date(iso);
-  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
-  return `${p.find(x=>x.type==="year").value}-${p.find(x=>x.type==="month").value}-${p.find(x=>x.type==="day").value}`;
-}
-function isoFromDateValue(ymd){
-  const s=(ymd||'').trim(); if(!s) return null;
-  // Create date at noon LOCAL time to avoid day-boundary issues
-  const [y,m,d]=s.split('-').map(Number);
-  if(!y||!m||!d) return null;
-  const dt=new Date(y, m-1, d, 12, 0, 0, 0);
-  return isNaN(dt.getTime())?null:dt.toISOString();
-}
-function dateInputToISOStart(ymd){ const m=(ymd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return null; return new Date(+m[1],+m[2]-1,+m[3],0,0,0,0).toISOString(); }
-function dateInputToISOEnd(ymd){ const m=(ymd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return null; return new Date(+m[1],+m[2]-1,+m[3],23,59,59,999).toISOString(); }
-function dateValueFromStored(s){ if(!s) return ''; if(s.includes('T')) return dateValueFromISO(s); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; return ''; }
-
-// ═══════════════════════════════════════════
-// CSV PARSER
-// ═══════════════════════════════════════════
-function parseCSV(text){
-  const out=[]; let i=0,field="",row=[],inQ=false;
-  function pf(){ row.push(field); field=""; }
-  function pr(){ if(row.some(x=>(x??"").trim()!=="")) out.push(row); row=[]; }
-  while(i<text.length){
-    const c=text[i];
-    if(inQ){ if(c==='"'&&text[i+1]==='"'){field+='"';i+=2;continue;} if(c==='"'){inQ=false;i++;continue;} field+=c;i++;continue; }
-    else{ if(c==='"'){inQ=true;i++;continue;} if(c===','){pf();i++;continue;} if(c==='\r'){i++;continue;} if(c==='\n'){pf();pr();i++;continue;} field+=c;i++;continue; }
-  }
-  pf(); pr();
-  const headers=(out.shift()||[]).map(h=>h.trim());
-  return out.map(r=>{ const obj={}; headers.forEach((h,idx)=>obj[h]=(r[idx]??"").trim()); return obj; });
-}
-function normalizeType(t){ const x=(t||"").toUpperCase(); if(x.includes("IN")) return "IN"; if(x.includes("OUT")) return "OUT"; return ""; }
-
-// ═══════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════
-function seed(){
-  return {
-    version:1, monthCursor:new Date().toISOString(), profileMonthCursor:new Date().toISOString(),
-    overviewMonthCursor:new Date().toISOString(), mgmtMonthCursor:new Date().toISOString(),
-    selectedId:null,
-    ui:{inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"},
-    people:[], clockEvents:[], loas:[], entries:[], notesEntries:[], eotmHistory:[],
-    calendarEvents:[],
-    trainingNotes:[],
-    mgmtEvents:[],
-    shiftTags:[],
-    templates:[],
-    blacklist:[],
-    sops:[],
-    auditLog:[],
-    loggedInAs:''
-  };
-}
-
-let state = seed();
-let _firestoreReady = false;
-let _authUser = null;
-let _devMode = new URLSearchParams(location.search).get('key') === 'HHVV2025';
-let _snapshotUnsubs = [];
-
-// Firestore collection names mapped to state keys
-const COLLECTIONS = {
-  people:'people', clockEvents:'clockEvents', loas:'loas', entries:'entries',
-  notesEntries:'notesEntries', eotmHistory:'eotmHistory', calendarEvents:'calendarEvents',
-  trainingNotes:'trainingNotes', mgmtEvents:'mgmtEvents', shiftTags:'shiftTags', templates:'templates'
-};
-const CONFIG_KEYS = ['blacklist','sops','auditLog'];
-
-// ── UI-only prefs (per-browser, not shared) ──
-function saveUI(){
-  try{
-    const uiState = {
-      ui: state.ui,
-      selectedId: state.selectedId,
-      profileMonthCursor: state.profileMonthCursor,
-      overviewMonthCursor: state.overviewMonthCursor,
-      mgmtMonthCursor: state.mgmtMonthCursor,
-      monthCursor: state.monthCursor,
-      loggedInAs: state.loggedInAs
-    };
-    localStorage.setItem(STORE_KEY, JSON.stringify(uiState));
-  } catch(e){ console.error("UI save error:",e); }
-}
-function loadUI(){
-  try{
-    const raw = localStorage.getItem(STORE_KEY);
-    if(raw){
-      const ui = JSON.parse(raw);
-      state.ui = ui.ui || {inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"};
-      state.ui.reviewTab||="eotm"; state.ui.view||="hub";
-      state.selectedId = ui.selectedId || null;
-      state.profileMonthCursor = ui.profileMonthCursor || new Date().toISOString();
-      state.overviewMonthCursor = ui.overviewMonthCursor || new Date().toISOString();
-      state.mgmtMonthCursor = ui.mgmtMonthCursor || new Date().toISOString();
-      state.monthCursor = ui.monthCursor || new Date().toISOString();
-      state.loggedInAs = ui.loggedInAs || '';
-    }
-  } catch(e){ console.error("UI load error:",e); }
-}
-
-// ── Firestore write helpers ──
-async function fsSetDoc(collection, id, data){
-  try{
-    // Strip undefined values (Firestore doesn't like them)
-    const clean = JSON.parse(JSON.stringify(data));
-    await db.collection(collection).doc(id).set(clean);
-    return true;
-  } catch(e){
-    console.error(`Firestore write failed [${collection}/${id}]:`,e);
-    toast('Save failed — check connection');
-    return false;
-  }
-}
-async function fsDeleteDoc(collection, id){
-  try{
-    await db.collection(collection).doc(id).delete();
-    return true;
-  } catch(e){
-    console.error(`Firestore delete failed [${collection}/${id}]:`,e);
-    toast('Delete failed — check connection');
-    return false;
-  }
-}
-async function fsSetConfig(key, data){
-  try{
-    const clean = JSON.parse(JSON.stringify(data));
-    await db.collection('config').doc(key).set({items: clean});
-    return true;
-  } catch(e){
-    console.error(`Config write failed [${key}]:`,e);
-    toast('Save failed — check connection');
-    return false;
-  }
-}
-
-// ── Per-item save: write one doc to Firestore ──
-async function savePerson(p){ ensurePerson(p); await fsSetDoc('people',p.id,{...p}); }
-async function saveClockEvent(ev){ await fsSetDoc('clockEvents',ev.id,{...ev}); }
-async function saveLoa(loa){ await fsSetDoc('loas',loa.id,{...loa}); }
-async function saveEntry(entry){ await fsSetDoc('entries',entry.id,{...entry}); }
-async function saveNoteEntry(note){ await fsSetDoc('notesEntries',note.id,{...note}); }
-async function saveEotm(eotm){ await fsSetDoc('eotmHistory',eotm.id,{...eotm}); }
-async function saveCalendarEvent(ev){ await fsSetDoc('calendarEvents',ev.id,{...ev}); }
-async function saveTrainingNote(tn){ await fsSetDoc('trainingNotes',tn.id,{...tn}); }
-async function saveMgmtEvent(ev){ await fsSetDoc('mgmtEvents',ev.id,{...ev}); }
-async function saveShiftTag(tag){ await fsSetDoc('shiftTags',tag.id,{...tag}); }
-async function saveTemplate(tpl){ await fsSetDoc('templates',tpl.id,{...tpl}); }
-
-// Delete helpers
-async function deletePersonDoc(id){ await fsDeleteDoc('people',id); }
-async function deleteClockEventDoc(id){ await fsDeleteDoc('clockEvents',id); }
-async function deleteLoaDoc(id){ await fsDeleteDoc('loas',id); }
-async function deleteEntryDoc(id){ await fsDeleteDoc('entries',id); }
-async function deleteNoteEntryDoc(id){ await fsDeleteDoc('notesEntries',id); }
-async function deleteEotmDoc(id){ await fsDeleteDoc('eotmHistory',id); }
-async function deleteCalendarEventDoc(id){ await fsDeleteDoc('calendarEvents',id); }
-async function deleteTrainingNoteDoc(id){ await fsDeleteDoc('trainingNotes',id); }
-async function deleteMgmtEventDoc(id){ await fsDeleteDoc('mgmtEvents',id); }
-async function deleteShiftTagDoc(id){ await fsDeleteDoc('shiftTags',id); }
-async function deleteTemplateDoc(id){ await fsDeleteDoc('templates',id); }
-
-// Config saves (blacklist, sops, auditLog)
-async function saveBlacklist(){ await fsSetConfig('blacklist',state.blacklist||[]); }
-async function saveSOPs(){ await fsSetConfig('sops',state.sops||[]); }
-async function saveAuditLog(){ await fsSetConfig('auditLog',state.auditLog||[]); }
-
-// ── Legacy save() — now saves UI locally AND syncs data to Firestore ──
-// All 70+ existing save() calls trigger this. It debounces Firestore writes
-// to avoid hammering on rapid changes (e.g. bulk imports).
-let _saveTimer = null;
-let _savingToFirestore = false;
-function save(){
-  saveUI();
-  if(!_firestoreReady) return;
-  if(_saveTimer) clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(()=>{ _saveTimer=null; syncToFirestore(); }, 300);
-}
-
-// Flag to suppress re-renders from our own writes coming back via onSnapshot
-let _suppressSnapshotRender = false;
-
-async function syncToFirestore(){
-  if(_savingToFirestore) return;
-  _savingToFirestore = true;
-  _suppressSnapshotRender = true;
-  try{
-    // Sync each collection — batch write all docs
-    for(const [stateKey, collName] of Object.entries(COLLECTIONS)){
-      const items = state[stateKey] || [];
-      const currentSnap = await db.collection(collName).get();
-      const existingIds = new Set(currentSnap.docs.map(d=>d.id));
-      const stateIds = new Set(items.map(x=>x.id));
-
-      // Batched writes (max 500 per batch)
-      let batch = db.batch();
-      let opCount = 0;
-
-      // Add/update docs
-      for(const item of items){
-        if(!item.id) continue;
-        const clean = JSON.parse(JSON.stringify(item));
-        batch.set(db.collection(collName).doc(item.id), clean);
-        opCount++;
-        if(opCount >= 490){ await batch.commit(); batch = db.batch(); opCount = 0; }
-      }
-
-      // Delete docs that are no longer in state
-      for(const id of existingIds){
-        if(!stateIds.has(id)){
-          batch.delete(db.collection(collName).doc(id));
-          opCount++;
-          if(opCount >= 490){ await batch.commit(); batch = db.batch(); opCount = 0; }
-        }
-      }
-
-      if(opCount > 0) await batch.commit();
-    }
-
-    // Sync config docs
-    for(const key of CONFIG_KEYS){
-      const data = state[key] || [];
-      const clean = JSON.parse(JSON.stringify(data));
-      await db.collection('config').doc(key).set({items: clean});
-    }
-
-  } catch(e){
-    console.error('Firestore sync error:',e);
-    toast('Sync failed — check connection');
-  } finally {
-    _savingToFirestore = false;
-    // Allow snapshot renders again after a brief delay
-    setTimeout(()=>{ _suppressSnapshotRender = false; }, 500);
-  }
-}
-
-// ── Real-time listeners ──
-function setupListeners(){
-  _snapshotUnsubs.forEach(fn=>fn());
-  _snapshotUnsubs=[];
-
-  for(const [stateKey, collName] of Object.entries(COLLECTIONS)){
-    const unsub = db.collection(collName).onSnapshot(snap=>{
-      if(_suppressSnapshotRender){
-        state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
-        return;
-      }
-      state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
-      // If people just loaded and we have an auth user with no match yet, retry
-      if(_firestoreReady) refreshCurrentView();
-    }, err=>{ console.error(`Listener error [${collName}]:`,err); });
-    _snapshotUnsubs.push(unsub);
-  }
-
-  for(const key of CONFIG_KEYS){
-    const unsub = db.collection('config').doc(key).onSnapshot(snap=>{
-      if(_suppressSnapshotRender){
-        state[key] = snap.exists ? (snap.data().items||[]) : [];
-        return;
-      }
-      state[key] = snap.exists ? (snap.data().items||[]) : [];
-      if(_firestoreReady) refreshCurrentView();
-    }, err=>{ console.error(`Config listener error [${key}]:`,err); });
-    _snapshotUnsubs.push(unsub);
-  }
-}
-
-// Debounced re-render
-let _renderTimer = null;
-function refreshCurrentView(){
-  if(_renderTimer) clearTimeout(_renderTimer);
-  _renderTimer = setTimeout(()=>{
-    _renderTimer = null;
-    const v = state.ui?.view;
-    if(v==='hub') renderHub();
-    else if(v==='profile' && state.selectedId) renderProfile();
-    else if(v==='overview') renderOverview();
-    else if(v==='mgmtcal') renderMgmtCal();
-    else if(v==='shiftperf' && typeof renderShiftPerf==='function') renderShiftPerf();
-    else if(v==='leaderdash') renderLeaderDash();
-    else if(v==='review') renderReviewPage();
-    else if(v==='templates') renderTemplates();
-    else if(v==='blacklist') renderBlacklist();
-    else if(v==='sops') renderSOPs();
-    else if(v==='venues') renderVenueTracker();
-    else if(v==='rental') renderRentalCalc();
-    else if(v==='audit') renderAudit();
-    if(typeof populateLoginSelect==='function') populateLoginSelect();
-    if(typeof applyPermissions==='function') applyPermissions();
-  }, 200);
-}
-
-// ── Boot ──
-function boot(){
-  loadUI();
-  setupListeners();
-  // Wait for initial snapshots to populate
-  setTimeout(()=>{
-    _firestoreReady = true;
-    startApp();
-  }, 1500);
-}
-
-function startApp(){
-  // Hide loading overlay
-  const lo = document.getElementById('loadingOverlay');
-  if(lo) lo.style.display='none';
-  if(_devMode) unlockApp();
-
-  // Auto-archive Unknown/empty character names
-  for(const p of state.people){
-    if(!p.archived && (!p.character || p.character.toLowerCase()==='unknown')){
-      p.archived=true;
-      savePerson(p);
-    }
-  }
-
-  if(state.ui?.view==="review") renderReviewPage();
-  else if(state.ui?.view==="overview") renderOverview();
-  else if(state.ui?.view==="mgmtcal") renderMgmtCal();
-  else if(state.ui?.view==="templates") renderTemplates();
-  else if(state.ui?.view==="shiftperf") renderShiftPerf();
-  else if(state.ui?.view==="blacklist") renderBlacklist();
-  else if(state.ui?.view==="leaderdash") renderLeaderDash();
-  else if(state.ui?.view==="sops") renderSOPs();
-  else if(state.ui?.view==="venues") renderVenueTracker();
-  else if(state.ui?.view==="rental") renderRentalCalc();
-  else if(state.ui?.view==="audit") renderAudit();
-  else if(state.selectedId) renderProfile();
-  else renderHub();
+  const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);
+  return `${h}h ${m}m`;
 }
 
 // ═══════════════════════════════════════════
@@ -1641,11 +1652,10 @@ function importBackup(file){
       data.sops.forEach(e=>{ if(!e.id) e.id=uid(); });
       data.auditLog.forEach(e=>{ if(!e.id) e.id=uid(); });
       // Apply to state
-      for(const key of Object.keys(COLLECTIONS)) state[key] = data[key] || [];
-      for(const key of CONFIG_KEYS) state[key] = data[key] || [];
+      state = ensureState(data);
       // Preserve UI prefs
       state.ui = state.ui || {inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"};
-      save(); populateLoginSelect();
+      save();
       if(state.selectedId) renderProfile(); else renderHub();
       toast('Backup imported — syncing to database...');
     }catch(e){ alert("Backup import failed: "+e.message); }
@@ -2739,23 +2749,13 @@ function openShiftRoleModal(pid, dateKey){
   });
 }
 
-async function resetAll(){
+function resetAll(){
   if(!confirm("Reset EVERYTHING? This wipes all data from the shared database.")) return;
-  if(!confirm("Are you SURE? This cannot be undone. All 15 people lose their data.")) return;
-  // Delete all docs in each collection
-  for(const collName of Object.values(COLLECTIONS)){
-    const snap = await db.collection(collName).get();
-    const batch = db.batch();
-    snap.docs.forEach(d=>batch.delete(d.ref));
-    await batch.commit();
-  }
-  // Clear config docs
-  for(const key of CONFIG_KEYS){
-    await db.collection('config').doc(key).delete();
-  }
+  if(!confirm("Are you SURE? This cannot be undone.")) return;
   state=seed();
   try{localStorage.removeItem(STORE_KEY);}catch{}
-  save(); renderHub();
+  dbRef.set(state);
+  renderHub();
   toast('All data wiped');
 }
 
@@ -4737,84 +4737,9 @@ function applyCollapseState(){
   });
 }
 
-boot();
-
 // ═══════════════════════════════════════════
-// GOOGLE AUTH
+// SIDEBAR NAV WIRING
 // ═══════════════════════════════════════════
-const googleProvider = new firebase.auth.GoogleAuthProvider();
-
-document.getElementById('googleSignInBtn')?.addEventListener('click', ()=>{
-  auth.signInWithPopup(googleProvider).catch(err=>{
-    console.error('Sign-in error:',err);
-    if(err.code==='auth/popup-blocked') toast('Pop-up blocked — allow pop-ups for this site');
-    else toast('Sign-in failed: '+err.message);
-  });
-});
-
-document.getElementById('signOutBtn')?.addEventListener('click', ()=>{
-  auth.signOut();
-});
-
-// Lock/unlock the app based on auth state
-function lockApp(){
-  document.querySelector('.sidebar')?.querySelectorAll('.nav-item, .nav-section, .nav-divider, #sideEmployeeCount, #sideAddPerson').forEach(el=>{
-    if(el.id!=='googleSignInBtn') el.style.display='none';
-  });
-  // Hide main content
-  document.querySelector('main').style.display='none';
-}
-function unlockApp(){
-  // Visibility will be controlled by applyPermissions based on rank
-  document.querySelector('.sidebar')?.querySelectorAll('.nav-item, .nav-section, .nav-divider, #sideEmployeeCount, #sideAddPerson').forEach(el=>{
-    el.style.display='';
-  });
-  document.querySelector('main').style.display='';
-  if(typeof applyPermissions==='function') applyPermissions();
-}
-
-auth.onAuthStateChanged(user=>{
-  _authUser = user;
-  if(_devMode){ unlockApp(); return; }
-  const signedOutEl = document.getElementById('authSignedOut');
-  const signedInEl = document.getElementById('authSignedIn');
-
-  if(user){
-    // Signed in — find matching person by email
-    signedOutEl.style.display = 'none';
-    signedInEl.style.display = '';
-    document.getElementById('authUserName').textContent = user.displayName || user.email;
-
-    const match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
-    if(match){
-      state.loggedInAs = match.id;
-      document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
-      save();
-      unlockApp();
-      refreshCurrentView();
-    } else {
-      state.loggedInAs = '';
-      document.getElementById('authUserRole').textContent = 'No matching profile — contact a Director';
-      save();
-      lockApp();
-      document.getElementById('authSection').style.display='';
-    }
-  } else {
-    // Signed out — lock everything
-    signedOutEl.style.display = '';
-    signedInEl.style.display = 'none';
-    state.loggedInAs = '';
-    save();
-    lockApp();
-    // Make sure auth section stays visible so they can sign in
-    document.getElementById('authSection').style.display='';
-  }
-});
-
-// populateLoginSelect is now a no-op (override dropdown removed)
-function populateLoginSelect(){}
-
-// Sidebar nav wiring
 document.getElementById('sideHub')?.addEventListener('click',renderHub);
 document.getElementById('sideHours')?.addEventListener('click',()=>{renderOverview();});
 document.getElementById('sideMgmtCal')?.addEventListener('click',renderMgmtCal);
@@ -4834,80 +4759,39 @@ document.getElementById('addSopBtn')?.addEventListener('click',()=>openSopModal(
 document.getElementById('sideImportBackup')?.addEventListener('click',()=>document.getElementById('backupFile').click());
 document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
 
-// Update sidebar active state
+document.getElementById("csvFile")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importCSVFile(f);e.target.value="";});
+document.getElementById("rosterFile")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importRosterCSV(f);e.target.value="";});
+document.getElementById("backupFile")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importBackup(f);e.target.value="";});
+
+document.getElementById("search")?.addEventListener("input",()=>{if(state.ui?.view==='hub') renderHub();});
+document.getElementById("sort")?.addEventListener("change",()=>{if(state.ui?.view==='hub') renderHub();});
+document.getElementById('reviewTabEotm')?.addEventListener('click',()=>{state.ui.reviewTab='eotm';save();renderReviewPage();});
+document.getElementById('reviewTabPromo')?.addEventListener('click',()=>{state.ui.reviewTab='promo';save();renderReviewPage();});
+
+// Global click handler for clickable names
+document.addEventListener('click',(e)=>{
+  const el=e.target.closest('[data-go-profile]');
+  if(!el) return;
+  e.preventDefault();e.stopPropagation();
+  const pid=el.getAttribute('data-go-profile');
+  if(!pid) return;
+  if(!canViewProfile(pid)){toast("You can only view your own profile");return;}
+  state.selectedId=pid;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();
+});
+
 function updateSidebarActive(view){
   document.querySelectorAll('.sidebar .nav-item').forEach(el=>el.classList.remove('active'));
   const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',templates:'sideTemplates',blacklist:'sideBlacklist'};
   const id=map[view];
   if(id) document.getElementById(id)?.classList.add('active');
 }
-// loginAsSelect handler removed — auth is Google-only now
 
-function applyPermissions(){
-  if(_devMode){
-    document.querySelectorAll('[data-perm-edit]').forEach(el=>el.style.display='');
-    document.querySelectorAll('[data-perm-view-only]').forEach(el=>el.style.display='none');
-    ['sideMgmtCal','sideBlacklist','sideSOPs','sideHub','sideHours','sideShiftPerf',
-     'sideLeader','sidePromo','sideVenues','sideRental','sideTemplates','sideAudit',
-     'sideImportCSV','sideImport','sideExport','sideImportBackup','sideAddPerson'
-    ].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
-    document.querySelector('main').style.display='';
-    return;
-  }
-  const rl=rankLevel(currentRank()); // -1=not matched, 0=Employee, 1=Senior, 2=Sup, 3=Mgr, 4=Dir
-  const notMatched=!state.loggedInAs;
-  const isEmpSenior=!notMatched && rl<2;
-  const isSup=!notMatched && rl>=2;
-  const isDir=!notMatched && rl>=4;
+boot();
 
-  // Edit buttons: Supervisor+ only
-  document.querySelectorAll('[data-perm-edit]').forEach(el=>{el.style.display=isSup?'':'none';});
-  document.querySelectorAll('[data-perm-view-only]').forEach(el=>{el.style.display=isEmpSenior?'':'none';});
-
-  // === SIDEBAR NAV VISIBILITY ===
-  // Everyone (including Employee/Senior): Calendar, Blacklist, SOPs
-  const alwaysVisible=['sideMgmtCal','sideBlacklist','sideSOPs'];
-  alwaysVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=notMatched?'none':'';});
-
-  // Supervisor+: Hub, Hours, Shift Perf, Leadership, EOTM/Promo, Venues, Templates
-  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideRental','sideTemplates'];
-  supVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
-
-  // Director only: Audit Log
-  const dirVisible=['sideAudit'];
-  dirVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isDir?'':'none';});
-
-  // Data section: Supervisor+
-  const dataVisible=['sideImportCSV','sideImport','sideExport','sideImportBackup'];
-  dataVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
-
-  // + Person button: Supervisor+
-  const addP=document.getElementById('sideAddPerson');
-  if(addP) addP.style.display=isSup?'':'none';
-
-  // Employee count: visible when logged in
-  const countEl=document.getElementById('sideEmployeeCount');
-  if(countEl){
-    if(notMatched){ countEl.textContent=''; }
-    else {
-      const totalActive=state.people.filter(p=>!p.archived).length;
-      countEl.textContent=totalActive+' active employee'+(totalActive!==1?'s':'');
-    }
-  }
-
-  // If Employee/Senior is on a restricted page, redirect to own profile
-  if(isEmpSenior){
-    const me=currentUser();
-    const allowed=['blacklist','sops','mgmtcal','profile'];
-    if(!allowed.includes(state.ui?.view)){
-      if(me){state.selectedId=me.id;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();return;}
-    }
-    if(state.ui?.view==='profile'&&state.selectedId){
-      if(me&&state.selectedId!==me.id){state.selectedId=me.id;state.profileMonthCursor=new Date().toISOString();save();renderProfile();return;}
-    }
-  }
-}
-applyPermissions();
+// Sign out button in sidebar
+document.getElementById('signOutBtn')?.addEventListener('click', ()=>{
+  auth.signOut().then(()=>{ location.reload(); });
+});
 
 
 </script>
