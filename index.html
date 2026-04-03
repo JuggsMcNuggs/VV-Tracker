@@ -1251,11 +1251,12 @@ function setupListeners(){
   for(const [stateKey, collName] of Object.entries(COLLECTIONS)){
     const unsub = db.collection(collName).onSnapshot(snap=>{
       if(_suppressSnapshotRender){
-        // Still update state from snapshot, just don't re-render
         state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
         return;
       }
       state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      // If people just loaded and we have an auth user with no match yet, retry
+      if(stateKey==='people' && _authUser && !state.loggedInAs) tryAuthMatch();
       if(_firestoreReady) refreshCurrentView();
     }, err=>{ console.error(`Listener error [${collName}]:`,err); });
     _snapshotUnsubs.push(unsub);
@@ -1314,18 +1315,12 @@ function startApp(){
   // Hide loading overlay
   const lo = document.getElementById('loadingOverlay');
   if(lo) lo.style.display='none';
-  // Re-run auth matching now that Firestore data is loaded.
-  // onAuthStateChanged fires on page load before people are fetched, so
-  // a returning signed-in user may have been locked out with state.people=[].
-  if(_authUser){
-    const match = state.people.find(p=>p.email && p.email.toLowerCase()===_authUser.email.toLowerCase());
-    if(match){
-      state.loggedInAs = match.id;
-      document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
-      document.getElementById('bootstrapSetup').style.display='none';
-      save();
-      unlockApp();
-    } else if(!state.loggedInAs){
+  // Belt-and-suspenders: re-run auth match now that Firestore is confirmed ready.
+  if(_authUser && !state.loggedInAs){
+    tryAuthMatch();
+    // If still no match, show the real error / bootstrap option
+    if(!state.loggedInAs){
+      document.getElementById('authUserRole').textContent = 'No matching profile — contact a Director';
       const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
       const bsDiv = document.getElementById('bootstrapSetup');
       if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
@@ -4803,6 +4798,22 @@ document.getElementById('bootstrapBtn')?.addEventListener('click', async ()=>{
   toast('Director profile created — welcome!');
 });
 
+// ── Auth match helper ──
+// Called from both onAuthStateChanged AND the people onSnapshot so that
+// whichever arrives last (auth or Firestore data) triggers the unlock.
+function tryAuthMatch(){
+  if(!_authUser) return;
+  const match = state.people.find(p=>p.email && p.email.trim().toLowerCase()===_authUser.email.trim().toLowerCase());
+  if(match){
+    state.loggedInAs = match.id;
+    document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
+    document.getElementById('bootstrapSetup').style.display='none';
+    save();
+    unlockApp();
+    if(_firestoreReady) refreshCurrentView();
+  }
+}
+
 // Lock/unlock the app based on auth state
 function lockApp(){
   document.querySelector('.sidebar')?.querySelectorAll('.nav-item, .nav-section, .nav-divider, #sideEmployeeCount, #sideAddPerson').forEach(el=>{
@@ -4831,25 +4842,29 @@ auth.onAuthStateChanged(user=>{
     signedInEl.style.display = '';
     document.getElementById('authUserName').textContent = user.displayName || user.email;
 
-    // Match to a person in the tracker by email
-    const match = state.people.find(p => p.email && p.email.toLowerCase() === user.email.toLowerCase());
+    // Try to match now; if Firestore isn't loaded yet tryAuthMatch() will
+    // be called again from the people onSnapshot when data arrives.
+    const match = state.people.find(p=>p.email && p.email.trim().toLowerCase()===user.email.trim().toLowerCase());
     if(match){
       state.loggedInAs = match.id;
       document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
+      document.getElementById('bootstrapSetup').style.display='none';
       save();
       unlockApp();
       refreshCurrentView();
     } else {
       state.loggedInAs = '';
-      document.getElementById('authUserRole').textContent = 'No matching profile — contact a Director';
+      document.getElementById('authUserRole').textContent = _firestoreReady
+        ? 'No matching profile — contact a Director'
+        : 'Loading…';
       save();
       lockApp();
-      // Show the auth section but nothing else
       document.getElementById('authSection').style.display='';
-      // Bootstrap: if Firestore is loaded and no directors exist, offer self-registration
-      const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
-      const bsDiv = document.getElementById('bootstrapSetup');
-      if(bsDiv) bsDiv.style.display = (_firestoreReady && !hasDir) ? '' : 'none';
+      if(_firestoreReady){
+        const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
+        const bsDiv = document.getElementById('bootstrapSetup');
+        if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
+      }
     }
   } else {
     // Signed out — lock everything
