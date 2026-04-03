@@ -1882,7 +1882,7 @@ function renderOverview(){
   const hasRange=ovFrom&&ovFrom.value&&ovTo&&ovTo.value;
   
   if(hasRange){
-    $("#ovMonthLabel").textContent=`${fmtMDY(ovFrom.value)} — ${fmtMDY(ovTo.value)}`;
+    $("#ovMonthLabel").textContent=`${fmtMDY(new Date(ovFrom.value+'T00:00:00'))} — ${fmtMDY(new Date(ovTo.value+'T00:00:00'))}`;
   } else {
     $("#ovMonthLabel").textContent=fmtMonthLabel(md);
   }
@@ -4797,16 +4797,6 @@ if(nm) nm.addEventListener('click',()=>{
   d.setMonth(d.getMonth()+1); state.profileMonthCursor=d.toISOString(); save(); renderProfile();
 });
 
-const ovP=document.getElementById('ovPrev');
-if(ovP) ovP.addEventListener('click',()=>{
-  const d=startOfMonth(new Date(state.overviewMonthCursor));
-  d.setMonth(d.getMonth()-1); state.overviewMonthCursor=d.toISOString(); save(); renderOverview();
-});
-const ovN=document.getElementById('ovNext');
-if(ovN) ovN.addEventListener('click',()=>{
-  const d=startOfMonth(new Date(state.overviewMonthCursor));
-  d.setMonth(d.getMonth()+1); state.overviewMonthCursor=d.toISOString(); save(); renderOverview();
-});
 const ovApply=document.getElementById('ovDateApply');
 if(ovApply) ovApply.addEventListener('click',renderOverview);
 const ovClear=document.getElementById('ovDateClear');
