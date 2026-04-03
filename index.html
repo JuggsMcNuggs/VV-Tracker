@@ -1251,6 +1251,11 @@ function setupListeners(){
       }
       state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
       // If people just loaded and we have an auth user with no match yet, retry
+      // If bypass mode is active but we haven't matched a Director yet, try now
+      if(stateKey==='people' && _devMode && !state.loggedInAs){
+        const dir = state.people.find(p=>!p.archived && p.rank==='Director');
+        if(dir){ state.loggedInAs = dir.id; save(); unlockApp(); }
+      }
       if(_firestoreReady) refreshCurrentView();
     }, err=>{ console.error(`Listener error [${collName}]:`,err); });
     _snapshotUnsubs.push(unsub);
