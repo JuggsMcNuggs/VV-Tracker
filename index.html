@@ -925,34 +925,19 @@ function rankLevel(rank){
   return idx===-1?-1:idx;
 }
 function canEdit(){
-  // Supervisor+ can edit
-  if(!currentUser()) return false;
-  return rankLevel(currentRank())>=2;
+  return true; // PHASE 1: open access
 }
 function canView(){
-  return !!currentUser();
+  return true;
 }
 function canViewProfile(targetPid){
-  const me=currentUser();
-  if(!me) return false; // not logged in = no access
-  if(rankLevel(me.rank)>=2) return true; // Supervisor+ sees all
-  return me.id===targetPid; // Employee/Senior sees own only
+  return true; // PHASE 1: everyone sees all profiles
 }
 function canPromoteOrFire(targetPid){
-  const me=currentUser();
-  if(!me) return false; // not logged in = no access
-  const target=getPerson(targetPid);
-  if(!target) return false;
-  const myLevel=rankLevel(me.rank);
-  const theirLevel=rankLevel(target.rank);
-  if(myLevel>=4) return true; // Director = god mode
-  if(myLevel>=2) return theirLevel<myLevel; // Can only affect lower ranks
-  return false;
+  return true; // PHASE 1: open access
 }
 function isViewOnly(){
-  const me=currentUser();
-  if(!me) return true; // not logged in = view only at best
-  return rankLevel(me.rank)<2;
+  return false; // PHASE 1: nobody is view-only
 }
 
 // ═══════════════════════════════════════════
@@ -4776,59 +4761,29 @@ function unlockApp(){
 // Bootstrap admin — first Director, can set up everyone else
 const BOOTSTRAP_ADMIN_EMAIL = 'cbxfried117@gmail.com';
 
-auth.onAuthStateChanged(async (user)=>{
+auth.onAuthStateChanged(user=>{
   _authUser = user;
-  if(_devMode){ unlockApp(); return; }
   const signedOutEl = document.getElementById('authSignedOut');
   const signedInEl = document.getElementById('authSignedIn');
 
   if(user){
+    // PHASE 1: Signed in with Google = you're in. Full access.
     signedOutEl.style.display = 'none';
     signedInEl.style.display = '';
     document.getElementById('authUserName').textContent = user.displayName || user.email;
 
-    let match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
-
-    // Bootstrap admin: if no match but this is the admin email, find or create a Director profile
-    if(!match && user.email.trim().toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase()){
-      // Try to find a profile by name "Isabella Caponi" or any Director without an email
-      match = state.people.find(p => !p.archived && p.rank === 'Director' && !p.email);
-      if(!match){
-        // No Director profile exists — create one
-        match = {
-          id: uid(),
-          character: user.displayName || 'Admin',
-          rank: 'Director',
-          email: user.email,
-          steam:'', steamName:'', callsign:'', discord:'', discordId:'',
-          timeZone:'', bankAccount:'', employeeNumber:'', stageName:'', phone:'',
-          training:{sop:{done:false,trainerId:'',date:'',comment:''},roles:{}},
-          priorityRole:'', crossTrain:[], notes:'', archived:false
-        };
-        ensurePerson(match);
-        state.people.push(match);
-      } else {
-        // Found a Director without email — claim it
-        match.email = user.email;
-      }
-      // Save to Firestore
-      save();
-      toast('Admin profile linked');
-    }
-
+    // Try to match to a profile by email for display purposes
+    const match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
     if(match){
       state.loggedInAs = match.id;
-      document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
-      save();
-      unlockApp();
-      refreshCurrentView();
+      document.getElementById('authUserRole').textContent = match.rank || 'Staff';
     } else {
       state.loggedInAs = '';
-      document.getElementById('authUserRole').textContent = 'No matching profile — contact a Director';
-      save();
-      lockApp();
-      document.getElementById('authSection').style.display='';
+      document.getElementById('authUserRole').textContent = 'Full access';
     }
+    save();
+    unlockApp();
+    refreshCurrentView();
   } else {
     // Signed out — lock everything
     signedOutEl.style.display = '';
@@ -4873,67 +4828,18 @@ function updateSidebarActive(view){
 // loginAsSelect handler removed — auth is Google-only now
 
 function applyPermissions(){
-  if(_devMode){
-    document.querySelectorAll('[data-perm-edit]').forEach(el=>el.style.display='');
-    document.querySelectorAll('[data-perm-view-only]').forEach(el=>el.style.display='none');
-    ['sideMgmtCal','sideBlacklist','sideSOPs','sideHub','sideHours','sideShiftPerf',
-     'sideLeader','sidePromo','sideVenues','sideRental','sideTemplates','sideAudit',
-     'sideImportCSV','sideImport','sideExport','sideImportBackup','sideAddPerson'
-    ].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
-    document.querySelector('main').style.display='';
-    return;
-  }
-  const rl=rankLevel(currentRank()); // -1=not matched, 0=Employee, 1=Senior, 2=Sup, 3=Mgr, 4=Dir
-  const notMatched=!state.loggedInAs;
-  const isEmpSenior=!notMatched && rl<2;
-  const isSup=!notMatched && rl>=2;
-  const isDir=!notMatched && rl>=4;
-
-  // Edit buttons: Supervisor+ only
-  document.querySelectorAll('[data-perm-edit]').forEach(el=>{el.style.display=isSup?'':'none';});
-  document.querySelectorAll('[data-perm-view-only]').forEach(el=>{el.style.display=isEmpSenior?'':'none';});
-
-  // === SIDEBAR NAV VISIBILITY ===
-  // Everyone (including Employee/Senior): Calendar, Blacklist, SOPs
-  const alwaysVisible=['sideMgmtCal','sideBlacklist','sideSOPs'];
-  alwaysVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=notMatched?'none':'';});
-
-  // Supervisor+: Hub, Hours, Shift Perf, Leadership, EOTM/Promo, Venues, Templates
-  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideRental','sideTemplates'];
-  supVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
-
-  // Director only: Audit Log
-  const dirVisible=['sideAudit'];
-  dirVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isDir?'':'none';});
-
-  // Data section: Supervisor+
-  const dataVisible=['sideImportCSV','sideImport','sideExport','sideImportBackup'];
-  dataVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
-
-  // + Person button: Supervisor+
-  const addP=document.getElementById('sideAddPerson');
-  if(addP) addP.style.display=isSup?'':'none';
-
-  // Employee count: visible when logged in
+  // PHASE 1: Everyone gets full access. Ladder will be re-added once stable.
+  document.querySelectorAll('[data-perm-edit]').forEach(el=>el.style.display='');
+  document.querySelectorAll('[data-perm-view-only]').forEach(el=>el.style.display='none');
+  ['sideMgmtCal','sideBlacklist','sideSOPs','sideHub','sideHours','sideShiftPerf',
+   'sideLeader','sidePromo','sideVenues','sideRental','sideTemplates','sideAudit',
+   'sideImportCSV','sideImport','sideExport','sideImportBackup','sideAddPerson'
+  ].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+  document.querySelector('main').style.display='';
   const countEl=document.getElementById('sideEmployeeCount');
   if(countEl){
-    if(notMatched){ countEl.textContent=''; }
-    else {
-      const totalActive=state.people.filter(p=>!p.archived).length;
-      countEl.textContent=totalActive+' active employee'+(totalActive!==1?'s':'');
-    }
-  }
-
-  // If Employee/Senior is on a restricted page, redirect to own profile
-  if(isEmpSenior){
-    const me=currentUser();
-    const allowed=['blacklist','sops','mgmtcal','profile'];
-    if(!allowed.includes(state.ui?.view)){
-      if(me){state.selectedId=me.id;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();return;}
-    }
-    if(state.ui?.view==='profile'&&state.selectedId){
-      if(me&&state.selectedId!==me.id){state.selectedId=me.id;state.profileMonthCursor=new Date().toISOString();save();renderProfile();return;}
-    }
+    const totalActive=state.people.filter(p=>!p.archived).length;
+    countEl.textContent=totalActive+' active employee'+(totalActive!==1?'s':'');
   }
 }
 applyPermissions();
