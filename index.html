@@ -4756,6 +4756,55 @@ function applyCollapseState(){
   });
 }
 
+// ═══════════════════════════════════════════
+// SIDEBAR NAV WIRING
+// ═══════════════════════════════════════════
+document.getElementById('sideHub')?.addEventListener('click',renderHub);
+document.getElementById('sideHours')?.addEventListener('click',()=>{renderOverview();});
+document.getElementById('sideMgmtCal')?.addEventListener('click',renderMgmtCal);
+document.getElementById('sideShiftPerf')?.addEventListener('click',()=>{renderShiftPerf._filterPid='';renderShiftPerf._filterDay='';renderShiftPerf._month=new Date().toISOString();renderShiftPerf();});
+document.getElementById('sideLeader')?.addEventListener('click',renderLeaderDash);
+document.getElementById('sidePromo')?.addEventListener('click',()=>{state.ui.view='review';save();renderReviewPage();});
+document.getElementById('sideTemplates')?.addEventListener('click',renderTemplates);
+document.getElementById('sideBlacklist')?.addEventListener('click',renderBlacklist);
+document.getElementById('sideImportCSV')?.addEventListener('click',()=>document.getElementById('csvFile').click());
+document.getElementById('sideImport')?.addEventListener('click',()=>document.getElementById('rosterFile').click());
+document.getElementById('sideExport')?.addEventListener('click',exportBackup);
+document.getElementById('sideAudit')?.addEventListener('click',renderAudit);
+document.getElementById('sideSOPs')?.addEventListener('click',renderSOPs);
+document.getElementById('sideVenues')?.addEventListener('click',renderVenueTracker);
+document.getElementById('sideRental')?.addEventListener('click',renderRentalCalc);
+document.getElementById('addSopBtn')?.addEventListener('click',()=>openSopModal(null));
+document.getElementById('sideImportBackup')?.addEventListener('click',()=>document.getElementById('backupFile').click());
+document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
+
+document.getElementById("csvFile")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importCSVFile(f);e.target.value="";});
+document.getElementById("rosterFile")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importRosterCSV(f);e.target.value="";});
+document.getElementById("backupFile")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f) importBackup(f);e.target.value="";});
+
+document.getElementById("search")?.addEventListener("input",()=>{if(state.ui?.view==='hub') renderHub();});
+document.getElementById("sort")?.addEventListener("change",()=>{if(state.ui?.view==='hub') renderHub();});
+document.getElementById('reviewTabEotm')?.addEventListener('click',()=>{state.ui.reviewTab='eotm';save();renderReviewPage();});
+document.getElementById('reviewTabPromo')?.addEventListener('click',()=>{state.ui.reviewTab='promo';save();renderReviewPage();});
+
+// Global click handler for clickable names
+document.addEventListener('click',(e)=>{
+  const el=e.target.closest('[data-go-profile]');
+  if(!el) return;
+  e.preventDefault();e.stopPropagation();
+  const pid=el.getAttribute('data-go-profile');
+  if(!pid) return;
+  if(!canViewProfile(pid)){toast("You can only view your own profile");return;}
+  state.selectedId=pid;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();
+});
+
+function updateSidebarActive(view){
+  document.querySelectorAll('.sidebar .nav-item').forEach(el=>el.classList.remove('active'));
+  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',templates:'sideTemplates',blacklist:'sideBlacklist'};
+  const id=map[view];
+  if(id) document.getElementById(id)?.classList.add('active');
+}
+
 boot();
 
 // Sign out button in sidebar
