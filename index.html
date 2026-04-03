@@ -4773,19 +4773,49 @@ function unlockApp(){
   if(typeof applyPermissions==='function') applyPermissions();
 }
 
-auth.onAuthStateChanged(user=>{
+// Bootstrap admin — first Director, can set up everyone else
+const BOOTSTRAP_ADMIN_EMAIL = 'cbxfried117@gmail.com';
+
+auth.onAuthStateChanged(async (user)=>{
   _authUser = user;
   if(_devMode){ unlockApp(); return; }
   const signedOutEl = document.getElementById('authSignedOut');
   const signedInEl = document.getElementById('authSignedIn');
 
   if(user){
-    // Signed in — find matching person by email
     signedOutEl.style.display = 'none';
     signedInEl.style.display = '';
     document.getElementById('authUserName').textContent = user.displayName || user.email;
 
-    const match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
+    let match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
+
+    // Bootstrap admin: if no match but this is the admin email, find or create a Director profile
+    if(!match && user.email.trim().toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase()){
+      // Try to find a profile by name "Isabella Caponi" or any Director without an email
+      match = state.people.find(p => !p.archived && p.rank === 'Director' && !p.email);
+      if(!match){
+        // No Director profile exists — create one
+        match = {
+          id: uid(),
+          character: user.displayName || 'Admin',
+          rank: 'Director',
+          email: user.email,
+          steam:'', steamName:'', callsign:'', discord:'', discordId:'',
+          timeZone:'', bankAccount:'', employeeNumber:'', stageName:'', phone:'',
+          training:{sop:{done:false,trainerId:'',date:'',comment:''},roles:{}},
+          priorityRole:'', crossTrain:[], notes:'', archived:false
+        };
+        ensurePerson(match);
+        state.people.push(match);
+      } else {
+        // Found a Director without email — claim it
+        match.email = user.email;
+      }
+      // Save to Firestore
+      save();
+      toast('Admin profile linked');
+    }
+
     if(match){
       state.loggedInAs = match.id;
       document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
@@ -4806,7 +4836,6 @@ auth.onAuthStateChanged(user=>{
     state.loggedInAs = '';
     save();
     lockApp();
-    // Make sure auth section stays visible so they can sign in
     document.getElementById('authSection').style.display='';
   }
 });
