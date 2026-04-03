@@ -460,11 +460,6 @@
         <div id="authUserName" style="font-size:11px;font-weight:700;color:var(--gold-hi);word-break:break-all"></div>
         <div id="authUserRole" style="font-size:10px;color:var(--muted);margin-top:2px"></div>
         <button class="btn-ghost btn-sm" id="signOutBtn" style="width:100%;margin-top:6px;font-size:10px">Sign Out</button>
-        <div id="bootstrapSetup" style="display:none;margin-top:8px">
-          <div style="font-size:10px;color:var(--warn);margin-bottom:4px;line-height:1.4">No staff in database.<br>Create the first Director?</div>
-          <input id="bootstrapName" placeholder="Your character name" style="width:100%;font-size:11px;padding:5px 8px">
-          <button class="btn-accent btn-sm" id="bootstrapBtn" style="width:100%;margin-top:4px;font-size:10px">Create Director Profile</button>
-        </div>
       </div>
     </div>
     <div style="margin-top:auto;padding-top:8px">
@@ -1256,7 +1251,6 @@ function setupListeners(){
       }
       state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
       // If people just loaded and we have an auth user with no match yet, retry
-      if(stateKey==='people' && _authUser && !state.loggedInAs) tryAuthMatch();
       if(_firestoreReady) refreshCurrentView();
     }, err=>{ console.error(`Listener error [${collName}]:`,err); });
     _snapshotUnsubs.push(unsub);
@@ -1315,16 +1309,12 @@ function startApp(){
   // Hide loading overlay
   const lo = document.getElementById('loadingOverlay');
   if(lo) lo.style.display='none';
-  // Belt-and-suspenders: re-run auth match now that Firestore is confirmed ready.
-  if(_authUser && !state.loggedInAs){
-    tryAuthMatch();
-    // If still no match, show the real error / bootstrap option
-    if(!state.loggedInAs){
-      document.getElementById('authUserRole').textContent = 'No matching profile — contact a Director';
-      const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
-      const bsDiv = document.getElementById('bootstrapSetup');
-      if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
-    }
+  // If a bypass key is in the URL, unlock as the first Director in the DB
+  if(new URLSearchParams(location.search).get('key') === 'HHVV2025'){
+    _devMode = true;
+    const dir = state.people.find(p=>!p.archived && p.rank==='Director');
+    if(dir){ state.loggedInAs = dir.id; save(); }
+    unlockApp();
   }
 
   // Auto-archive Unknown/empty character names
@@ -4772,48 +4762,6 @@ document.getElementById('signOutBtn')?.addEventListener('click', ()=>{
   auth.signOut();
 });
 
-document.getElementById('bootstrapBtn')?.addEventListener('click', async ()=>{
-  const name = (document.getElementById('bootstrapName')?.value||'').trim();
-  if(!name){ alert('Enter your character name'); return; }
-  if(!_authUser?.email){ alert('Not signed in'); return; }
-  if(state.people.some(p=>!p.archived && p.rank==='Director')){
-    alert('A Director already exists — contact them to add you.');
-    document.getElementById('bootstrapSetup').style.display='none';
-    return;
-  }
-  const p={id:uid(),steam:'',steamName:'',character:name,callsign:'',stageName:'',
-    rank:'Director',discord:'',discordId:'',timeZone:'',bankAccount:'',
-    email:_authUser.email,phone:'',
-    training:{sop:{done:false,trainerId:'',date:'',comment:''},roles:{}},
-    priorityRole:'',crossTrain:[],notes:'',archived:false};
-  ensurePerson(p);
-  state.people.push(p);
-  await savePerson(p);
-  state.loggedInAs=p.id;
-  save();
-  document.getElementById('bootstrapSetup').style.display='none';
-  document.getElementById('authUserRole').textContent='Director';
-  unlockApp();
-  refreshCurrentView();
-  toast('Director profile created — welcome!');
-});
-
-// ── Auth match helper ──
-// Called from both onAuthStateChanged AND the people onSnapshot so that
-// whichever arrives last (auth or Firestore data) triggers the unlock.
-function tryAuthMatch(){
-  if(!_authUser) return;
-  const match = state.people.find(p=>p.email && p.email.trim().toLowerCase()===_authUser.email.trim().toLowerCase());
-  if(match){
-    state.loggedInAs = match.id;
-    document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
-    document.getElementById('bootstrapSetup').style.display='none';
-    save();
-    unlockApp();
-    if(_firestoreReady) refreshCurrentView();
-  }
-}
-
 // Lock/unlock the app based on auth state
 function lockApp(){
   document.querySelector('.sidebar')?.querySelectorAll('.nav-item, .nav-section, .nav-divider, #sideEmployeeCount, #sideAddPerson').forEach(el=>{
@@ -4842,29 +4790,20 @@ auth.onAuthStateChanged(user=>{
     signedInEl.style.display = '';
     document.getElementById('authUserName').textContent = user.displayName || user.email;
 
-    // Try to match now; if Firestore isn't loaded yet tryAuthMatch() will
-    // be called again from the people onSnapshot when data arrives.
-    const match = state.people.find(p=>p.email && p.email.trim().toLowerCase()===user.email.trim().toLowerCase());
+    if(_devMode){ unlockApp(); return; }
+    const match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
     if(match){
       state.loggedInAs = match.id;
       document.getElementById('authUserRole').textContent = match.rank || 'No rank set';
-      document.getElementById('bootstrapSetup').style.display='none';
       save();
       unlockApp();
       refreshCurrentView();
     } else {
       state.loggedInAs = '';
-      document.getElementById('authUserRole').textContent = _firestoreReady
-        ? 'No matching profile — contact a Director'
-        : 'Loading…';
+      document.getElementById('authUserRole').textContent = 'No matching profile — contact a Director';
       save();
       lockApp();
       document.getElementById('authSection').style.display='';
-      if(_firestoreReady){
-        const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
-        const bsDiv = document.getElementById('bootstrapSetup');
-        if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
-      }
     }
   } else {
     // Signed out — lock everything
