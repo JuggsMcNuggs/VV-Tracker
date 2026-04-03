@@ -1494,7 +1494,10 @@ function activityStatus(pid){
 
 function activityMsgTemplate(which, name, lastClockIn){
   if(which==='inactivity'){
-    const lastDate = lastClockIn ? fmtMDY(lastClockIn) : 'an unknown date';
+    let lastDate = 'an unknown date';
+    if(lastClockIn){
+      try{ lastDate = fmtMDY(new Date(lastClockIn)); }catch{ lastDate = 'an unknown date'; }
+    }
     return `Hi,\nWe see that you have not clocked in to any of our venues since ${lastDate}. If you are looking to continue your employment at Vanilla Venues, you will need to make attempts to clock in to one of our openings within the next week, or your employment will be terminated. If you need to create or extend an LOA for any reason, please reach out to management in order to do so. As a reminder, any employee is able to request a location to be opened in discussion or by messaging a supervisor+. If you have any questions or concerns about your ability to clock in within the next week, reach out to myself or another supervisor+.\n-VV Management`;
   }
   return '';
