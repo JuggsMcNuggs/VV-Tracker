@@ -570,6 +570,7 @@
             <button class="btn-ghost btn-sm" id="pPrevMonth">←</button>
             <span class="pill" id="pMonthLabel">Month</span>
             <span class="pill accent" id="pCalTotal">0 hr</span>
+            <span class="pill bad" id="pCalNCNS" style="display:none">0 NCNS</span>
             <button class="btn-ghost btn-sm" id="pNextMonth">→</button>
             <button class="btn-accent btn-sm" id="addCalEventBtn" data-perm-edit>+ Event</button>
           </div>
@@ -1844,7 +1845,7 @@ function renderHub(){
     btn.addEventListener("click",e=>{
       e.preventDefault();e.stopPropagation();
       const pp=state.people.find(x=>x.id===btn.getAttribute("data-revive"));
-      if(pp){pp.archived=false;save();renderHub();}
+      if(pp){pp.archived=false;auditLog('Revived',pp.character||pp.id,'');save();renderHub();}
     });
   });
   document.querySelectorAll("[data-action-copy-dc]").forEach(btn=>{
@@ -2036,6 +2037,15 @@ function renderProfile(){
   $("#pMonthLabel").textContent=fmtMonthLabel(monthDate);
   renderCalendar(p.id);
   $("#pCalTotal").textContent=durLabel(monthly.countedMs);
+  // NCNS tally for this month
+  const ncnsCount=(state.mgmtEvents||[]).filter(me=>{
+    const dk=dateValueFromISO(me.dateISO);
+    const ms=dateValueFromISO(startOfMonth(monthDate).toISOString());
+    const me2=dateValueFromISO(endOfMonth(monthDate).toISOString());
+    return dk>=ms&&dk<me2&&(me.roster||[]).some(r=>r.personId===p.id&&r.ncns);
+  }).length;
+  const ncnsPill=document.getElementById('pCalNCNS');
+  if(ncnsPill){if(ncnsCount>0){ncnsPill.textContent=ncnsCount+' NCNS';ncnsPill.style.display='';}else ncnsPill.style.display='none';}
 
   renderLOABanner(p.id);
   renderEntries(p.id);
@@ -2417,6 +2427,7 @@ function renderLOABanner(pid){
   `).join('');
   banner.querySelectorAll('[data-edit-loa]').forEach(btn=>btn.addEventListener('click',()=>openLOAModal(btn.getAttribute('data-edit-loa'))));
   banner.querySelectorAll('[data-del-loa]').forEach(btn=>btn.addEventListener('click',()=>{
+    auditLog('LOA deleted',getPerson(state.selectedId)?.character||'','');
     state.loas=state.loas.filter(x=>x.id!==btn.getAttribute('data-del-loa'));
     save();renderProfile();
   }));
@@ -2443,13 +2454,15 @@ function renderEntries(pid){
       </div>
       <div class="entry-actions">
         ${!isSynced&&canEdit()?`<button class="btn-ghost btn-sm" data-edit-entry="${escapeHtml(e.id)}">Edit</button>`:''}
-        ${!isSynced&&canEdit()?`<button class="btn-ghost btn-sm" data-del-entry="${escapeHtml(e.id)}">Del</button>`:''}
+        ${!isSynced&&(DEV_MODE||rankLevel(currentRank())>=4)?`<button class="btn-ghost btn-sm" data-del-entry="${escapeHtml(e.id)}">Del</button>`:''}
       </div>
     </div>`;
   }).join('')||`<div class="muted small">No entries yet.</div>`;
   host.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>addEntry(btn.getAttribute('data-edit-entry'))));
   host.querySelectorAll('[data-del-entry]').forEach(btn=>btn.addEventListener('click',()=>{
+    const entry=state.entries.find(x=>x.id===btn.getAttribute('data-del-entry'));
     state.entries=state.entries.filter(x=>x.id!==btn.getAttribute('data-del-entry'));
+    auditLog('Record deleted',getPerson(state.selectedId)?.character||'','Deleted: '+(entry?.kind||'')+' — '+(entry?.note||'').substring(0,60));
     save();renderProfile();
   }));
 }
@@ -2472,7 +2485,7 @@ function renderNotes(pid){
       <div class="note-text">${escapeHtml(n.note||'')}</div>
     </div>
   `).join('')||`<div class="muted small">No notes yet.</div>`;
-  host.querySelectorAll('[data-del-note]').forEach(btn=>{btn.addEventListener('click',()=>{state.notesEntries=state.notesEntries.filter(x=>x.id!==btn.getAttribute('data-del-note'));save();renderNotes(pid);});});
+  host.querySelectorAll('[data-del-note]').forEach(btn=>{btn.addEventListener('click',()=>{auditLog('Note deleted',getPerson(pid)?.character||'','');state.notesEntries=state.notesEntries.filter(x=>x.id!==btn.getAttribute('data-del-note'));save();renderNotes(pid);});});
   host.querySelectorAll('[data-edit-note]').forEach(btn=>{btn.addEventListener('click',()=>{
     const n=state.notesEntries.find(x=>x.id===btn.getAttribute('data-edit-note'));
     if(n) openNoteModal(n);
@@ -2578,6 +2591,7 @@ function renderReviewPage(){
       p.rank=newRank;
       // Log promotion as a commendation entry
       state.entries.push({id:uid(),personId:pid,dateISO:new Date().toISOString(),kind:'Verbal Discussion',note:`Promoted from ${oldRank} to ${newRank}`});
+      auditLog('Promoted', p.character||p.id, `${oldRank} → ${newRank}`);
       save();toast(`Promoted to ${newRank}`);renderReviewPage();
     });
   });
@@ -2603,7 +2617,7 @@ function addPerson(){
     const p={id:uid(),steam,steamName:($("#f_steamName").value||'').trim(),character,callsign:'',
       rank:$("#f_rank").value||'',discord:'',discordId:'',timeZone:'',bankAccount:'',
       training:{sop:{done:false,trainerId:'',date:'',comment:''},roles:{}},priorityRole:'',crossTrain:[],notes:''};
-    ensurePerson(p);state.people.push(p);save();closeModal();renderHub();
+    ensurePerson(p);state.people.push(p);auditLog('Person added',character||steam,'');save();closeModal();renderHub();
   });
 }
 
@@ -2631,7 +2645,7 @@ function editBasics(){
     p.timeZone=($("#e_tz").value||'').trim(); p.bankAccount=($("#e_bank").value||'').trim();
     p.phone=($("#e_phone").value||'').trim();
     p.email=($("#e_email").value||'').trim();
-    auditLog('Profile edited',p.character||p.id);
+    auditLog('Profile edited', p.character||p.id, 'Basic info updated');
     save();closeModal();renderProfile();
   });
 }
@@ -2641,7 +2655,7 @@ function deletePerson(){
   if(!canPromoteOrFire(p.id)){toast('Cannot terminate someone at or above your rank');return;}
   const btn=document.getElementById('deletePersonBtn'); if(!btn) return;
   if(btn.dataset.confirming==='true'){
-    auditLog('Person terminated',p.character||p.id);
+    auditLog('Terminated', p.character||p.id, 'Employment ended');
     p.archived=true; state.selectedId=null; save(); renderHub();
   } else {
     btn.dataset.confirming='true';
@@ -2673,8 +2687,8 @@ function addEntry(existingId=null){
     const iso=isoFromDateValue(ds); if(!iso) return alert('Pick a date.');
     const kind=document.getElementById('en_kind').value;
     const note=(document.getElementById('en_note').value||'').trim();
-    if(existing){existing.dateISO=iso;existing.kind=kind;existing.note=note;}
-    else{state.entries.push({id:uid(),personId:p.id,dateISO:iso,kind,note});}
+    if(existing){existing.dateISO=iso;existing.kind=kind;existing.note=note;auditLog('Record edited',p.character||p.id,kind);}
+    else{state.entries.push({id:uid(),personId:p.id,dateISO:iso,kind,note});auditLog('Record added',p.character||p.id,kind+': '+note.substring(0,60));}
     save();closeModal();renderProfile();
   });
 }
@@ -2697,8 +2711,8 @@ function openLOAModal(existingId=null){
     if(!s||!e) return alert('Need both dates.'); const sISO=dateInputToISOStart(s),eISO=dateInputToISOEnd(e);
     if(new Date(eISO)<new Date(sISO)) return alert('End must be after start.');
     const reason=(document.getElementById('loa_reason').value||'').trim();
-    if(existing){existing.startISO=sISO;existing.endISO=eISO;existing.reason=reason;}
-    else{state.loas.push({id:uid(),personId:p.id,startISO:sISO,endISO:eISO,reason});}
+    if(existing){existing.startISO=sISO;existing.endISO=eISO;existing.reason=reason;auditLog('LOA edited',p.character||p.id,s+' to '+e);}
+    else{state.loas.push({id:uid(),personId:p.id,startISO:sISO,endISO:eISO,reason});auditLog('LOA added',p.character||p.id,s+' to '+e);}
     save();closeModal();renderProfile();
   });
 }
@@ -2714,8 +2728,8 @@ function openNoteModal(existing){
   document.getElementById('note_save').addEventListener('click',()=>{
     const ds=(document.getElementById('note_date').value||'').trim(); if(!ds) return alert('Pick a date.');
     const text=(document.getElementById('note_text').value||'').trim(); if(!text) return alert('Cannot be empty.');
-    if(existing){existing.dateISO=isoFromDateValue(ds);existing.note=text;}
-    else{state.notesEntries.push({id:uid(),personId:state.selectedId,dateISO:isoFromDateValue(ds),note:text});}
+    if(existing){existing.dateISO=isoFromDateValue(ds);existing.note=text;auditLog('Note edited',getPerson(state.selectedId)?.character||'',text.substring(0,60));}
+    else{state.notesEntries.push({id:uid(),personId:state.selectedId,dateISO:isoFromDateValue(ds),note:text});auditLog('Note added',getPerson(state.selectedId)?.character||'',text.substring(0,60));}
     save();closeModal();renderProfile();
   });
 }
@@ -3124,7 +3138,7 @@ function openMgmtDayDetail(dayKey,evts){
       const delId=btn.getAttribute('data-del-mgmt');
       // Also remove any profile calendar events synced from this mgmt event
       state.calendarEvents=(state.calendarEvents||[]).filter(ce=>ce.mgmtSourceId!==delId);
-      auditLog('Event deleted',delId);
+      auditLog('Event deleted', '—', delId);
       state.mgmtEvents=(state.mgmtEvents||[]).filter(x=>x.id!==delId);
       save();closeModal();renderMgmtCal();
     });
@@ -3204,7 +3218,7 @@ function openMgmtEventModal(existing, prefillDate){
   const venueOpts=`<option value="">— Select venue —</option>`+VENUE_EVENT_TYPES.map(v=>`<option value="${escapeHtml(v.value)}" ${v.value===venueTypeVal?'selected':''}>${escapeHtml(v.label)}</option>`).join('');
   const trainRoleOpts=[...FIXED_ROLES].map(r=>`<option value="${escapeHtml(r)}" ${r===trainingRole?'selected':''}>${escapeHtml(r)}</option>`).join('');
 
-  function rosterCard(pid,role,positives,improvements){
+  function rosterCard(pid,role,positives,improvements,ncns){
     const p=getPerson(pid); if(!p) return '';
     const hasContent=!!(positives||improvements);
     const roleLabel=role||'—';
@@ -3219,6 +3233,7 @@ function openMgmtEventModal(existing, prefillDate){
         </div>
       </div>
       <div data-roster-body="${escapeHtml(pid)}" style="padding:8px 10px;display:none;flex-direction:column;gap:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--bad);cursor:pointer"><input type="checkbox" data-roster-ncns="${escapeHtml(pid)}" ${ncns?'checked':''}/> No Call No Show</label>
         <div style="display:flex;gap:8px;align-items:flex-start"><span class="muted small" style="min-width:50px;padding-top:6px">Positives</span><textarea data-roster-pos="${escapeHtml(pid)}" rows="2" placeholder="What went well..." style="flex:1;font-size:12px;padding:4px 8px;min-height:32px">${escapeHtml(positives||'')}</textarea></div>
         <div style="display:flex;gap:8px;align-items:flex-start"><span class="muted small" style="min-width:50px;padding-top:6px">Improve</span><textarea data-roster-imp="${escapeHtml(pid)}" rows="2" placeholder="What needs work..." style="flex:1;font-size:12px;padding:4px 8px;min-height:32px">${escapeHtml(improvements||'')}</textarea></div>
       </div>
@@ -3239,7 +3254,7 @@ function openMgmtEventModal(existing, prefillDate){
     </div>`;
   }
 
-  let rosterHtml=rosterData.map(r=>rosterCard(r.personId,r.role,r.positives,r.improvements)).join('');
+  let rosterHtml=rosterData.map(r=>rosterCard(r.personId,r.role,r.positives,r.improvements,r.ncns)).join('');
   let superPills=taggedSupers.map(id=>tagPill(id,'supers')).join(' ');
   let seniorPills=taggedSeniors.map(id=>tagPill(id,'seniors')).join(' ');
   let traineeHtml=taggedTrainees.map(t=>traineeCard(t.personId,t.trainedFor)).join('');
@@ -3350,7 +3365,7 @@ function openMgmtEventModal(existing, prefillDate){
     // Auto-add leader to roster if not already there
     const rosterContainer=document.getElementById('me_roster');
     if(rosterContainer && !rosterContainer.querySelector(`[data-roster-pid="${CSS.escape(pid)}"]`)){
-      rosterContainer.insertAdjacentHTML('beforeend',rosterCard(pid,'','',''));
+      rosterContainer.insertAdjacentHTML('beforeend',rosterCard(pid,'','','',false));
     }
     wireRemove();
   });
@@ -3376,7 +3391,7 @@ function openMgmtEventModal(existing, prefillDate){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:6px;height:6px;border-radius:50%;background:${roleColors[r]}"></div><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${roleColors[r]}">${escapeHtml(r)} Overall</span></div>
         <textarea data-me-rolenote="${escapeHtml(r)}" rows="2" placeholder="Overall ${r.toLowerCase()} notes..." style="width:100%;padding:8px 10px;background:#141414;border:1px solid ${roleColors[r]}30;border-radius:8px;color:var(--text);font-size:12px;font-family:inherit;resize:vertical;outline:none;line-height:1.5">${escapeHtml(existingRoleNotes[r]||'')}</textarea>
       </div>
-      <div data-me-rlist="${escapeHtml(r)}" style="padding:6px 12px">${byRole[r].map(x=>rosterCard(x.personId,x.role,x.positives,x.improvements)).join('')}</div>
+      <div data-me-rlist="${escapeHtml(r)}" style="padding:6px 12px">${byRole[r].map(x=>rosterCard(x.personId,x.role,x.positives,x.improvements,x.ncns)).join('')}</div>
     </div>`).join('');
     // Wire tabs
     document.querySelectorAll('[data-me-rtab]').forEach(btn=>{
@@ -3408,7 +3423,7 @@ function openMgmtEventModal(existing, prefillDate){
         document.querySelectorAll('[data-me-rlist] .roster-card').forEach(c=>allTagged.add(c.getAttribute('data-roster-pid')));
         if(allTagged.has(pid)){toast('Already tagged');return;}
         const listDiv=document.querySelector(`[data-me-rlist="${r}"]`);
-        if(listDiv){listDiv.insertAdjacentHTML('beforeend',rosterCard(pid,r,'',''));wireRemove();updateTabCounts();}
+        if(listDiv){listDiv.insertAdjacentHTML('beforeend',rosterCard(pid,r,'','',false));wireRemove();updateTabCounts();}
       });
     });
   })();
@@ -3453,7 +3468,9 @@ function openMgmtEventModal(existing, prefillDate){
         const pid=card.getAttribute('data-roster-pid');
         const positives=(card.querySelector(`[data-roster-pos="${CSS.escape(pid)}"]`)?.value||'').trim();
         const improvements=(card.querySelector(`[data-roster-imp="${CSS.escape(pid)}"]`)?.value||'').trim();
-        roster.push({personId:pid,role,positives,improvements});
+        const ncns=!!card.querySelector(`[data-roster-ncns="${CSS.escape(pid)}"]`)?.checked;
+        roster.push({personId:pid,role,positives,improvements,ncns});
+        if(ncns) auditLog('NCNS flagged', getPerson(pid)?.character||pid, venueTitle||venueTypeLabel(venueType)||'');
       });
     }
     function collectTags(g){return [...document.querySelectorAll(`[data-tag-group="${g}"]`)].map(el=>el.getAttribute('data-tag-pid'));}
@@ -3540,6 +3557,7 @@ function openMgmtEventModal(existing, prefillDate){
           note:'Interview (attended)',mgmtSourceId:mgmtId});
       }
     }
+    auditLog(existing?'Event edited':'Event created', venueTitle||venueTypeLabel(venueType)||storeType, fmtMDY(new Date(iso)));
     save();closeModal();renderMgmtCal();toast("Saved");
   });
 }
@@ -3777,6 +3795,15 @@ function renderShiftPerf(){
     for(const r of roster){
       totalStaff.add(r.personId);
       const pName=personLink(r.personId);
+      // NCNS badge
+      if(r.ncns){
+        html+=`<div style="border:1px solid var(--bad-border);border-radius:var(--r);overflow:hidden;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bad-dim)">
+            <b style="font-size:13px">${pName}</b>
+            <div style="display:flex;gap:6px;align-items:center"><span class="muted" style="font-size:11px">${escapeHtml(r.role||'\u2014')}</span><span style="font-size:10px;font-weight:700;color:var(--bad)">NO CALL NO SHOW</span></div>
+          </div>
+        </div>`;
+      }
       if(r.positives && noteFilter!=='improve'){
         totalPos++;
         html+=`<div style="border:1px solid var(--good-border);border-radius:var(--r);overflow:hidden;margin-bottom:4px">
@@ -3882,19 +3909,20 @@ function renderLeadership(pid, p){
   }).sort((a,b)=>(dateValueFromISO(b.dateISO)||'').localeCompare(dateValueFromISO(a.dateISO)||''));
 
   const led={openings:[],trainings:[],interviews:[]};
-  const attended={trainings:[],interviews:[]};
+  const attended={openings:[],trainings:[],interviews:[]};
 
   for(const me of allMgmt){
     const dateStr=fmtMDY(new Date(me.dateISO));
     const isLed=me.ledBy===pid;
     const isAttended=(me.attendedBy||[]).includes(pid)||(me.taggedSupers||[]).includes(pid)||(me.taggedSeniors||[]).includes(pid);
-    const isOnRoster=(me.roster||[]).some(r=>r.personId===pid);
+    const isOnRoster=(me.roster||[]).some(r=>r.personId===pid&&!r.ncns);
 
     if(me.type==='event'){
       const label=me.venueTitle||venueTypeLabel(me.venueType||'');
       const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
       const entry={date:dateStr,label,color,cancelled:!!me.cancelled};
-      if(isLed||isOnRoster) led.openings.push(entry);
+      if(isLed) led.openings.push(entry);
+      else if(isOnRoster) attended.openings.push(entry);
     } else if(me.type==='training'){
       const entry={date:dateStr,label:'Training',color:'#6ec0cc'};
       if(isLed) led.trainings.push(entry);
@@ -3915,7 +3943,7 @@ function renderLeadership(pid, p){
   }
 
   const ledTotal=led.openings.length+led.trainings.length+led.interviews.length;
-  const attTotal=attended.trainings.length+attended.interviews.length;
+  const attTotal=attended.openings.length+attended.trainings.length+attended.interviews.length;
 
   let html=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -3930,7 +3958,9 @@ function renderLeadership(pid, p){
       </div>
       <div>
         <div style="font-weight:700;font-size:13px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px">Attended (${attTotal})</div>
-        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:6px 0 2px">Trainings (${attended.trainings.length})</div>
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:6px 0 2px">Openings (${attended.openings.length})</div>
+        ${section(attended.openings,'None')}
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Trainings (${attended.trainings.length})</div>
         ${section(attended.trainings,'None')}
         <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Interviews (${attended.interviews.length})</div>
         ${section(attended.interviews,'None')}
@@ -3998,7 +4028,7 @@ function renderLeaderDash(){
 
     for(const me of evts){
       const isLed=me.ledBy===p.id;
-      const isOnRoster=(me.roster||[]).some(r=>r.personId===p.id);
+      const isOnRoster=(me.roster||[]).some(r=>r.personId===p.id&&!r.ncns);
       const isAttended=(me.attendedBy||[]).includes(p.id)||(me.taggedSupers||[]).includes(p.id)||(me.taggedSeniors||[]).includes(p.id);
       const dateStr=fmtMDY(new Date(me.dateISO));
 
@@ -4084,14 +4114,19 @@ function openLeaderDashModal(pid,evts){
   const ledList=[],attList=[];
   for(const me of evts){
     const isLed=me.ledBy===pid;
-    const isOnRoster=(me.roster||[]).some(r=>r.personId===pid);
+    const isOnRoster=(me.roster||[]).some(r=>r.personId===pid&&!r.ncns);
     const isAttended=(me.attendedBy||[]).includes(pid)||(me.taggedSupers||[]).includes(pid)||(me.taggedSeniors||[]).includes(pid);
     const dateStr=fmtMDY(new Date(me.dateISO));
 
-    if(me.type==='event'&&(isLed||isOnRoster)){
+    if(me.type==='event'&&isLed){
       const label=me.venueTitle||venueTypeLabel(me.venueType||'');
       const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
       ledList.push({date:dateStr,type:'Opening',label,color,cancelled:!!me.cancelled,count:(me.roster||[]).length});
+    }
+    if(me.type==='event'&&isOnRoster){
+      const label=me.venueTitle||venueTypeLabel(me.venueType||'');
+      const color=venueTypeColor(me.venueType||'');
+      attList.push({date:dateStr,type:'Opening',label,color,ledBy:me.ledBy?personLabel(me.ledBy):'\u2014'});
     }
     if(me.type==='training'){
       if(isLed) ledList.push({date:dateStr,type:'Training',label:'Training',color:'#6ec0cc',count:(me.roleTrainees?Object.values(me.roleTrainees).flat().length:(me.taggedTrainees||[]).length)});
@@ -4209,6 +4244,8 @@ function renderBlacklist(){
 
   host.querySelectorAll('[data-bl-edit]').forEach(btn=>btn.addEventListener('click',()=>openBlacklistModal(btn.getAttribute('data-bl-edit'))));
   host.querySelectorAll('[data-bl-del]').forEach(btn=>btn.addEventListener('click',()=>{
+    const entry=(state.blacklist||[]).find(x=>x.id===btn.getAttribute('data-bl-del'));
+    auditLog('Blacklist deleted', entry?.name||'—', '');
     state.blacklist=(state.blacklist||[]).filter(x=>x.id!==btn.getAttribute('data-bl-del'));
     save();renderBlacklist();
   }));
@@ -4238,6 +4275,7 @@ function openBlacklistModal(editId){
     entry.issuingManager=(document.getElementById('bl_manager').value||'').trim();
     entry.reason=(document.getElementById('bl_reason').value||'').trim();
     if(!existing) state.blacklist.push(entry);
+    auditLog(existing?'Blacklist edited':'Blacklist added', entry.name||'—', entry.reason?.substring(0,60)||'');
     save();closeModal();renderBlacklist();toast('Blacklist entry saved');
   });
 }
@@ -4377,40 +4415,65 @@ function updateSidebarActive(view){
 // ═══════════════════════════════════════════
 // AUDIT LOG
 // ═══════════════════════════════════════════
-function auditLog(action, detail){
+function auditLog(action, target, detail){
   if(!state.auditLog) state.auditLog=[];
   const user=currentUser();
   state.auditLog.push({
     id:uid(),
     timestamp:new Date().toISOString(),
     userId:user?user.id:'',
-    userName:user?(user.character||user.steamName||'?'):'System',
-    userRank:user?(user.rank||''):'',
+    by:user?(user.character||user.steamName||'?'):(DEV_MODE?'Dev Mode':'System'),
     action,
-    detail:typeof detail==='string'?detail:JSON.stringify(detail)
+    target:target||'—',
+    detail:typeof detail==='string'?detail:(detail?JSON.stringify(detail):'')
   });
   if(state.auditLog.length>500) state.auditLog=state.auditLog.slice(-500);
+}
+
+// Audit action color map
+function auditActionColor(action){
+  const a=(action||'').toLowerCase();
+  if(a.includes('added')||a.includes('created')||a.includes('hired')||a.includes('revived')||a.includes('linked')) return '#6aaa6a';
+  if(a.includes('edited')||a.includes('updated')||a.includes('changed')||a.includes('promoted')) return '#c9a84c';
+  if(a.includes('deleted')||a.includes('terminated')||a.includes('archived')||a.includes('fired')) return '#cc5a55';
+  if(a.includes('ncns')) return '#e05555';
+  if(a.includes('approved')||a.includes('converted')) return '#9988bb';
+  return 'var(--muted)';
 }
 
 function renderAudit(){
   hideAllViews();
   document.getElementById('auditView').style.display="";
   state.ui.view="audit"; save(); updateSidebarActive("audit");
-  state.ui.view="audit"; save();
   const host=document.getElementById('auditBody');
   const me=currentUser();
-  if(me&&rankLevel(me.rank)<4){host.innerHTML='<div class="muted small" style="padding:20px;text-align:center">Directors only.</div>';return;}
+  if(!DEV_MODE && me&&rankLevel(me.rank)<4){host.innerHTML='<div class="muted small" style="padding:20px;text-align:center">Directors only.</div>';return;}
   const entries=(state.auditLog||[]).slice().reverse();
   if(!entries.length){host.innerHTML='<div class="muted small" style="padding:20px;text-align:center">No audit entries yet.</div>';return;}
-  host.innerHTML=entries.map(e=>{
+
+  let html=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr>
+      <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--line)">Date</th>
+      <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--line)">Action</th>
+      <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--line)">Target</th>
+      <th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--line)">Detail</th>
+      <th style="text-align:right;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--line)">By</th>
+    </tr></thead><tbody>`;
+
+  for(const e of entries){
     const d=new Date(e.timestamp);
-    const ts=d.toLocaleString();
-    return `<div style="padding:6px 8px;border-bottom:1px solid var(--line);font-size:12px;display:flex;gap:8px">
-      <span class="muted" style="min-width:140px;flex-shrink:0">${escapeHtml(ts)}</span>
-      <span style="min-width:120px;flex-shrink:0"><b>${escapeHtml(e.userName)}</b> <span class="muted">${escapeHtml(e.userRank)}</span></span>
-      <span style="flex:1">${escapeHtml(e.action)}: ${escapeHtml(e.detail||'')}</span>
-    </div>`;
-  }).join('');
+    const ts=d.toLocaleString(undefined,{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const col=auditActionColor(e.action);
+    html+=`<tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:6px 8px;font-size:11px;color:var(--muted);white-space:nowrap">${escapeHtml(ts)}</td>
+      <td style="padding:6px 8px"><span style="font-size:11px;font-weight:700;color:${col}">${escapeHtml(e.action)}</span></td>
+      <td style="padding:6px 8px;font-size:12px;font-weight:600">${escapeHtml(e.target||'—')}</td>
+      <td style="padding:6px 8px;font-size:11px;color:var(--muted)">${escapeHtml(e.detail||'')}</td>
+      <td style="padding:6px 8px;font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${escapeHtml(e.by||e.userName||'')}</td>
+    </tr>`;
+  }
+  html+=`</tbody></table>`;
+  host.innerHTML=html;
 }
 
 function renderSOPs(){
@@ -4441,7 +4504,7 @@ function renderSOPs(){
   host.querySelectorAll('[data-sop-edit]').forEach(btn=>btn.addEventListener('click',()=>openSopModal(btn.getAttribute('data-sop-edit'))));
   host.querySelectorAll('[data-sop-del]').forEach(btn=>btn.addEventListener('click',()=>{
     state.sops=(state.sops||[]).filter(x=>x.id!==btn.getAttribute('data-sop-del'));
-    auditLog('SOP deleted',btn.getAttribute('data-sop-del'));
+    auditLog('SOP deleted', btn.getAttribute('data-sop-del'), '');
     save();renderSOPs();
   }));
 }
@@ -4459,7 +4522,7 @@ function openSopModal(editId){
     entry.title=(document.getElementById('sop_title').value||'').trim();
     entry.content=(document.getElementById('sop_content').value||'').trim();
     if(!existing) state.sops.push(entry);
-    auditLog('SOP '+(existing?'edited':'created'),entry.title);
+    auditLog('SOP '+(existing?'edited':'created'), entry.title, '');
     save();closeModal();renderSOPs();toast('SOP saved');
   });
 }
