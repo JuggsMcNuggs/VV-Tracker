@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vanilla Unicorn — Staff Roster</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,900&display=swap');
+    :root {
+      --bg: #080808;
+      --panel: #0f0f0f;
+      --panel2: #141414;
+      --surface: #1a1a1a;
+      --line: #222222;
+      --line2: #2a2a2a;
+      --text: #f0ece0;
+      --muted: #806a50;
+      --accent: #c9a84c;
+      --accent-dim: rgba(201,168,76,.12);
+      --accent-mid: rgba(201,168,76,.30);
+      --gold-hi: #e8c96e;
+      --good: #6aaa6a;
+      --good-dim: rgba(106,170,106,.12);
+      --good-border: rgba(106,170,106,.45);
+      --bad: #cc5a55;
+      --loa: #9988bb;
+      --loa-dim: rgba(153,136,187,.12);
+      --loa-border: rgba(153,136,187,.45);
+      --r: 12px;
+      --r2: 16px;
+
+      --dnc: #c9a84c; --dnc-bg: rgba(201,168,76,.15); --dnc-tx: #e8c96e;
+      --sec: #6ca0d0; --sec-bg: rgba(108,160,208,.15); --sec-tx: #8dbde0;
+      --dj: #9988bb;  --dj-bg: rgba(153,136,187,.15);  --dj-tx: #b8a8d8;
+      --bar: #6aaa6a; --bar-bg: rgba(106,170,106,.15); --bar-tx: #8ecb8e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 20px 24px;
+      text-align: center;
+    }
+    .header-title { font-size: 18px; font-weight: 900; letter-spacing: .3px; color: var(--accent); }
+    .header-sub { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; margin-top: 4px; }
+    .header-status { font-size: 10px; margin-top: 6px; color: var(--muted); transition: color .3s; }
+    .header-count {
+      display: inline-block; margin-top: 8px;
+      font-size: 10px; font-weight: 700; color: var(--gold-hi);
+      background: var(--accent-dim); padding: 3px 12px;
+      border-radius: 999px; border: 1px solid var(--accent-mid);
+    }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 12px 20px 40px; }
+
+    .toolbar { margin-bottom: 12px; }
+    .toolbar input {
+      width: 100%; padding: 10px 14px;
+      border-radius: var(--r); border: 1px solid var(--line);
+      background: var(--panel); color: var(--text);
+      font-family: inherit; font-size: 13px; outline: none;
+      transition: border-color .2s;
+    }
+    .toolbar input:focus { border-color: var(--accent); }
+    .toolbar input::placeholder { color: rgba(128,106,80,.5); }
+    .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .pill-filter {
+      padding: 4px 12px; border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      border: 1px solid var(--line2);
+      background: rgba(26,26,26,.4);
+      color: var(--muted);
+      cursor: pointer; transition: all .15s;
+    }
+    .pill-filter:hover { border-color: var(--accent-mid); color: var(--gold-hi); }
+    .pill-filter.active { border-color: var(--accent-mid); background: var(--accent-dim); color: var(--gold-hi); }
+
+    /* ── Column Headers ── */
+    .col-headers {
+      display: grid;
+      grid-template-columns: 52px 1fr 130px 56px auto;
+      align-items: center;
+      padding: 12px 12px 6px;
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .8px;
+      color: rgba(128,106,80,.45);
+    }
+    .col-headers .role-head { display: flex; gap: 3px; justify-content: flex-end; }
+    .col-headers .role-head span { width: 32px; text-align: center; }
+
+    /* ── Rank Groups ── */
+    .rank-header {
+      font-size: 11px; font-weight: 500; color: var(--muted);
+      margin: 16px 0 6px 12px; letter-spacing: .3px;
+    }
+
+    /* ── Employee Row ── */
+    .emp-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 130px 56px auto;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: var(--r);
+      background: var(--panel);
+      margin-bottom: 3px;
+      border: 1px solid transparent;
+      transition: border-color .12s;
+    }
+    .emp-row:hover { border-color: var(--line2); }
+
+    .emp-id { font-size: 11px; font-weight: 700; }
+    .emp-id.director   { color: var(--bad); }
+    .emp-id.manager    { color: #e09040; }
+    .emp-id.supervisor { color: var(--accent); }
+    .emp-id.senior     { color: var(--good); }
+    .emp-id.employee   { color: var(--sec); }
+
+    .emp-name { font-weight: 900; font-size: 13px; line-height: 1.2; }
+    .emp-stage { font-size: 10px; color: var(--muted); font-style: italic; }
+    .emp-discord { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .emp-tz { font-size: 10px; color: var(--muted); text-align: center; }
+
+    .role-chips { display: flex; gap: 3px; justify-content: flex-end; }
+    .role-chip {
+      width: 32px; height: 22px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; font-weight: 700; letter-spacing: .3px;
+      background: var(--surface); color: var(--muted); opacity: .25;
+    }
+    .role-chip.active { opacity: 1; }
+    .role-chip.dancer.active   { background: var(--dnc-bg); color: var(--dnc-tx); }
+    .role-chip.security.active { background: var(--sec-bg); color: var(--sec-tx); }
+    .role-chip.dj.active       { background: var(--dj-bg);  color: var(--dj-tx); }
+    .role-chip.bartender.active { background: var(--bar-bg); color: var(--bar-tx); }
+
+    /* ── LOA Row ── */
+    .loa-row {
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: var(--r);
+      border: 1px solid var(--loa-border);
+      background: var(--loa-dim);
+      margin-bottom: 3px;
+    }
+    .loa-row .emp-id { color: var(--loa); }
+    .loa-row .emp-name { color: var(--loa); }
+    .loa-label {
+      font-size: 10px; font-weight: 500; color: var(--loa);
+      white-space: nowrap;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      margin-top: 20px; padding: 10px 14px;
+      background: var(--panel); border-radius: var(--r);
+      border: 1px solid var(--line);
+    }
+    .legend-i { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
+    .legend-s { width: 14px; height: 10px; border-radius: 3px; }
+    .legend-s.l-dnc { background: var(--dnc-bg); border: 1px solid var(--dnc); }
+    .legend-s.l-sec { background: var(--sec-bg); border: 1px solid var(--sec); }
+    .legend-s.l-dj  { background: var(--dj-bg);  border: 1px solid var(--dj); }
+    .legend-s.l-bar { background: var(--bar-bg); border: 1px solid var(--bar); }
+    .legend-s.l-loa { background: var(--loa-dim); border: 1px solid var(--loa); }
+
+    .footer { text-align: center; padding: 20px; font-size: 10px; color: rgba(128,106,80,.3); border-top: 1px solid var(--line); margin-top: 16px; }
+
+    .loading, .empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+    .loading::after {
+      content: ''; display: block; width: 22px; height: 22px;
+      margin: 12px auto 0; border: 2px solid var(--line);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 640px) {
+      .emp-row { grid-template-columns: 44px 1fr auto; }
+      .emp-discord, .emp-tz, .col-headers { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">Vanilla Unicorn</div>
+  <div class="header-sub">Staff Roster</div>
+  <div class="header-status" id="status">Loading…</div>
+  <div class="header-count" id="countBadge" style="display:none"></div>
+</div>
+
+<div class="wrap">
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search by name, discord, or ID…" />
+    <div class="filter-row">
+      <div class="pill-filter active" data-role="all" onclick="setFilter('all')">All</div>
+      <div class="pill-filter" data-role="Dancer" onclick="setFilter('Dancer')">Dancer</div>
+      <div class="pill-filter" data-role="Security" onclick="setFilter('Security')">Security</div>
+      <div class="pill-filter" data-role="DJ" onclick="setFilter('DJ')">DJ</div>
+      <div class="pill-filter" data-role="Bartender" onclick="setFilter('Bartender')">Bartender</div>
+    </div>
+  </div>
+
+  <div class="col-headers">
+    <div>ID</div>
+    <div>Name</div>
+    <div>Discord</div>
+    <div style="text-align:center">TZ</div>
+    <div class="role-head"><span>DNC</span><span>SEC</span><span>DJ</span><span>BAR</span></div>
+  </div>
+
+  <div id="roster"><div class="loading">Connecting to database</div></div>
+
+  <div class="legend" id="legend" style="display:none">
+    <div class="legend-i"><div class="legend-s l-dnc"></div>Dancer</div>
+    <div class="legend-i"><div class="legend-s l-sec"></div>Security</div>
+    <div class="legend-i"><div class="legend-s l-dj"></div>DJ</div>
+    <div class="legend-i"><div class="legend-s l-bar"></div>Bartender</div>
+    <div class="legend-i"><div class="legend-s l-loa"></div>On LOA</div>
+  </div>
+</div>
+
+<div class="footer">Read-only roster — updates live from the staff tracker</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDjIgEXGghQ8tYHOTOw7gjXmCiXYex30pQ",
+  authDomain: "vv-database-8ac24.firebaseapp.com",
+  databaseURL: "https://vv-database-8ac24-default-rtdb.firebaseio.com",
+  projectId: "vv-database-8ac24",
+  storageBucket: "vv-database-8ac24.firebasestorage.app",
+  messagingSenderId: "1059299536987",
+  appId: "1:1059299536987:web:8b04a0897af4e6618bcf7e"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const dbRef = db.ref('vuTracker');
+
+const RANK_ORDER = {Director:0, Manager:1, Supervisor:2, 'Senior Employee':3, Employee:4};
+const RANK_CLASS = {Director:'director',Manager:'manager',Supervisor:'supervisor','Senior Employee':'senior',Employee:'employee'};
+const ROLES = ['Dancer','Security','DJ','Bartender'];
+const ROLE_SHORT = {Dancer:'DNC',Security:'SEC',DJ:'DJ',Bartender:'BAR'};
+
+let data = null;
+let activeFilter = 'all';
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function isOnLOA(pid, loas){
+  const now = Date.now();
+  return loas.some(l => l.personId===pid && new Date(l.startISO).getTime()<=now && now<=new Date(l.endISO).getTime());
+}
+function getLOAEnd(pid, loas){
+  const now = Date.now();
+  const a = loas.find(l => l.personId===pid && new Date(l.startISO).getTime()<=now && now<=new Date(l.endISO).getTime());
+  return a ? new Date(a.endISO) : null;
+}
+
+function hasRole(p, role){
+  return !!(p.training && p.training.roles && p.training.roles[role] && p.training.roles[role].date);
+}
+
+function setFilter(role){
+  activeFilter = role;
+  document.querySelectorAll('.pill-filter').forEach(b =>
+    b.classList.toggle('active', b.dataset.role === role)
+  );
+  render();
+}
+
+function render(){
+  const host = document.getElementById('roster');
+  const badge = document.getElementById('countBadge');
+  const legend = document.getElementById('legend');
+
+  if(!data || !Array.isArray(data.people)){
+    host.innerHTML = '<div class="empty">No roster data available</div>';
+    return;
+  }
+
+  const loas = data.loas || [];
+  const q = (document.getElementById('search').value || '').toLowerCase().trim();
+
+  let people = data.people.filter(p => !p.archived);
+
+  if(q){
+    people = people.filter(p => {
+      const hay = `${p.character||''} ${p.steamName||''} ${p.discord||''} ${p.stageName||''} ${p.employeeNumber||''} ${p.callsign||''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  if(activeFilter !== 'all'){
+    people = people.filter(p => hasRole(p, activeFilter));
+  }
+
+  people.sort((a,b) => {
+    const ra = RANK_ORDER[a.rank] ?? 99, rb = RANK_ORDER[b.rank] ?? 99;
+    if(ra !== rb) return ra - rb;
+    return (a.character||'').localeCompare(b.character||'');
+  });
+
+  const totalActive = data.people.filter(p => !p.archived).length;
+  badge.style.display = '';
+  badge.textContent = totalActive + ' Active Staff';
+  legend.style.display = '';
+
+  if(!people.length){
+    host.innerHTML = '<div class="empty">No results found</div>';
+    return;
+  }
+
+  let html = '';
+  let currentRank = null;
+
+  for(const p of people){
+    const rank = p.rank || 'Unranked';
+    if(rank !== currentRank){
+      currentRank = rank;
+      const label = rank === 'Senior Employee' ? 'Senior Employees' : rank + 's';
+      html += `<div class="rank-header">${esc(label)}</div>`;
+    }
+
+    const cls = RANK_CLASS[rank] || 'employee';
+    const onLOA = isOnLOA(p.id, loas);
+    const loaEnd = getLOAEnd(p.id, loas);
+    const idDisplay = p.employeeNumber || p.callsign || '—';
+    const nameDisplay = p.character || p.steamName || 'Unknown';
+
+    if(onLOA){
+      const loaLabel = loaEnd ? 'LOA til ' + loaEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : 'LOA';
+      html += `<div class="loa-row">
+        <div class="emp-id ${cls}">${esc(idDisplay)}</div>
+        <div>
+          <div class="emp-name">${esc(nameDisplay)}</div>
+          ${p.stageName ? `<div class="emp-stage">${esc(p.stageName)}</div>` : ''}
+        </div>
+        <div class="loa-label">${esc(loaLabel)}</div>
+      </div>`;
+    } else {
+      const chips = ROLES.map(r => {
+        const on = hasRole(p, r);
+        return `<div class="role-chip ${r.toLowerCase()}${on?' active':''}">${ROLE_SHORT[r]}</div>`;
+      }).join('');
+
+      html += `<div class="emp-row">
+        <div class="emp-id ${cls}">${esc(idDisplay)}</div>
+        <div>
+          <div class="emp-name">${esc(nameDisplay)}</div>
+          ${p.stageName ? `<div class="emp-stage">${esc(p.stageName)}</div>` : ''}
+        </div>
+        <div class="emp-discord">${esc(p.discord||'—')}</div>
+        <div class="emp-tz">${esc(p.timeZone||'—')}</div>
+        <div class="role-chips">${chips}</div>
+      </div>`;
+    }
+  }
+
+  host.innerHTML = html;
+}
+
+dbRef.on('value', snap => {
+  data = snap.val();
+  document.getElementById('status').textContent = '● Live';
+  document.getElementById('status').style.color = '#4ade80';
+  render();
+}, err => {
+  console.error('Firebase error:', err);
+  document.getElementById('status').textContent = '⚠ Offline';
+  document.getElementById('status').style.color = '#cc5a55';
+  document.getElementById('roster').innerHTML = '<div class="empty">Could not connect. Try refreshing.</div>';
+});
+
+document.getElementById('search').addEventListener('input', () => render());
+</script>
+</body>
+</html>
