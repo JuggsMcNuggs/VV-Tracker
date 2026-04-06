@@ -590,7 +590,7 @@
         <div class="panel profile-two-col-panel">
           <div class="panel-head" style="cursor:pointer" data-collapse="training" onclick="if(!event.target.matches('button'))toggleCollapse('training')">
             <div class="h">Training</div>
-            <button class="btn-ghost btn-sm" id="editTrainingBtn" data-perm-edit>Edit</button>
+            <button class="btn-ghost btn-sm" id="editTrainingBtn">Edit</button>
           </div>
           <div class="panel-body" id="trainSnap"></div>
         </div>
@@ -2145,6 +2145,7 @@ function renderTraining(pid){
 
 function openTrainingModal(pid){
   const p=getPerson(pid); if(!p) return;
+  if(!canEdit()){ toast('Supervisor+ required'); return; }
   const trainers=managementTrainerOptions();
   const trOpts=(sel)=>[`<option value="">—</option>`].concat(trainers.map(t=>`<option value="${escapeHtml(t.id)}" ${t.id===sel?"selected":""}>${escapeHtml(t.label)}</option>`)).join('');
   const sopDone=!!p.training.sop?.done;
@@ -2912,9 +2913,11 @@ function renderMgmtCal(){
         const tileTime=displayEventTimeFromStored(me.eventTime,me.dateISO);
         tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:${vColor};border:1.5px solid ${vColor};white-space:nowrap;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:2px;${cStyle}" title="${escapeHtml(vLabel)}">${tileTime?escapeHtml(tileTime)+' · ':''}${escapeHtml(vLabel)}${me.cancelled?' ✕':''}</span>`;
       } else if(me.type==='training'){
-        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;white-space:nowrap;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${escapeHtml(me.trainingRole||'Training')}</span>`;
+        const tileTime=displayEventTimeFromStored(me.eventTime,me.dateISO);
+        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;white-space:nowrap;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${tileTime?escapeHtml(tileTime)+' · ':''}${escapeHtml(me.trainingRole||'Training')}</span>`;
       } else if(me.type==='interview'){
-        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:#cc7a6a;border:1.5px solid #cc7a6a;white-space:nowrap;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:2px">Interview</span>`;
+        const tileTime=displayEventTimeFromStored(me.eventTime,me.dateISO);
+        tags+=`<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;color:#cc7a6a;border:1.5px solid #cc7a6a;white-space:nowrap;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${tileTime?escapeHtml(tileTime)+' · ':''}Interview</span>`;
       }
     }
 
@@ -4792,10 +4795,11 @@ function renderVenueTracker(){
   const fromStr=vtFrom?.value||'2000-01-01';
   const toStr=vtTo?.value||'2099-12-31';
 
+  const todayStr=new Date().toISOString().slice(0,10);
   const events=(state.mgmtEvents||[]).filter(me=>{
     if(me.type!=='event') return false;
     const dk=dateValueFromISO(me.dateISO);
-    return dk>=fromStr&&dk<=toStr;
+    return dk>=fromStr&&dk<=toStr&&dk<=todayStr;
   });
   const venueStats={};
   for(const v of VENUES) venueStats[v]={total:0,cancelled:0,success:0};
