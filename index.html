@@ -2833,7 +2833,7 @@ function renderMgmtCal(){
   document.getElementById('mgmtCalView').style.display="";
   state.ui.view="mgmtcal"; save(); if(typeof updateSidebarActive==="function") updateSidebarActive("mgmtcal");
 
-  state.mgmtMonthCursor=new Date().toISOString();
+  if(!state.mgmtMonthCursor) state.mgmtMonthCursor=new Date().toISOString();
   const md=startOfMonth(new Date(state.mgmtMonthCursor));
   $("#mcMonthLabel").textContent=fmtMonthLabel(md);
   const year=md.getFullYear(), mIdx=md.getMonth();
