@@ -565,7 +565,7 @@
           <div class="h">Calendar</div>
           <div class="row tight" style="gap:6px">
             <button class="btn-ghost btn-sm" id="mcPrev">←</button>
-            <span class="pill" id="mcMonthLabel">Month</span>
+            <span class="pill" id="mcMonthLabel" style="cursor:pointer" title="Click to jump to month" onclick="const p=document.getElementById('mcMonthPicker');p.value=state.mgmtMonthCursor.slice(0,7);try{p.showPicker();}catch(e){}">Month</span><input type="month" id="mcMonthPicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
             <button class="btn-ghost btn-sm" id="mcNext">→</button>
             <button class="btn-accent btn-sm" id="addMgmtEventBtn">+ Entry</button>
           </div>
@@ -600,7 +600,7 @@
           <div class="h">Calendar</div>
           <div class="row tight" style="gap:6px;align-items:center">
             <button class="btn-ghost btn-sm" id="pPrevMonth">←</button>
-            <span class="pill" id="pMonthLabel">Month</span>
+            <span class="pill" id="pMonthLabel" style="cursor:pointer" title="Click to jump to month" onclick="const p=document.getElementById('pMonthPicker');p.value=state.profileMonthCursor.slice(0,7);try{p.showPicker();}catch(e){}">Month</span><input type="month" id="pMonthPicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
             <button class="btn-ghost btn-sm" id="pNextMonth">→</button>
             <span class="pill accent" id="pCalTotal" style="margin-left:4px">0 hr</span>
             <span class="pill bad" id="pCalNCNS" style="display:none">0 NCNS</span>
@@ -3230,6 +3230,12 @@ function setupAutocomplete(inputId, people, onSelect){
   inp.addEventListener('input',()=>render(inp.value));
   inp.addEventListener('focus',()=>{ if(inp.value.trim()) render(inp.value); });
   inp.addEventListener('blur',()=>{ setTimeout(()=>{listEl.classList.remove('open');},150); });
+  inp.addEventListener('keydown',(e)=>{
+    if((e.key==='Tab'||e.key==='Enter')&&listEl.classList.contains('open')){
+      const first=listEl.querySelector('.ac-item');
+      if(first){ e.preventDefault(); first.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }
+    }
+  });
 }
 
 function openMgmtEventModal(existing, prefillDate){
@@ -4898,6 +4904,11 @@ document.getElementById('mcNext')?.addEventListener('click',()=>{
   const d=startOfMonth(new Date(state.mgmtMonthCursor));
   d.setMonth(d.getMonth()+1); state.mgmtMonthCursor=d.toISOString(); save(); renderMgmtCal();
 });
+document.getElementById('mcMonthPicker')?.addEventListener('change',function(){
+  if(!this.value) return;
+  const [y,m]=this.value.split('-').map(Number);
+  state.mgmtMonthCursor=new Date(y,m-1,1).toISOString(); save(); renderMgmtCal();
+});
 
 document.getElementById("inactiveBtn")?.addEventListener("click",()=>{state.ui.inactiveOnly=!state.ui.inactiveOnly;if(state.ui.inactiveOnly){state.ui.showArchived=false;state.ui.needsTrainOnly=false;state.ui.needsActionOnly=false;}save();renderHub();});
 document.getElementById('needsTrainBtn')?.addEventListener("click",()=>{state.ui.needsTrainOnly=!state.ui.needsTrainOnly;if(state.ui.needsTrainOnly){state.ui.showArchived=false;state.ui.inactiveOnly=false;state.ui.needsActionOnly=false;}save();renderHub();});
@@ -4920,6 +4931,11 @@ const nm=document.getElementById('pNextMonth');
 if(nm) nm.addEventListener('click',()=>{
   const d=startOfMonth(new Date(state.profileMonthCursor));
   d.setMonth(d.getMonth()+1); state.profileMonthCursor=d.toISOString(); save(); renderProfile();
+});
+document.getElementById('pMonthPicker')?.addEventListener('change',function(){
+  if(!this.value) return;
+  const [y,m]=this.value.split('-').map(Number);
+  state.profileMonthCursor=new Date(y,m-1,1).toISOString(); save(); renderProfile();
 });
 
 const ovApply=document.getElementById('ovDateApply');
