@@ -2141,8 +2141,6 @@ function renderTraining(pid){
   detailHtml+=`</div>`;
 
   if(host) host.innerHTML=detailHtml;
-
-  document.getElementById('editTrainingBtn')?.addEventListener('click',()=>openTrainingModal(pid));
 }
 
 function openTrainingModal(pid){
@@ -3579,6 +3577,14 @@ function openMgmtEventModal(existing, prefillDate){
         state.calendarEvents.push({id:uid(),personId:t.personId,dateISO:iso,type:'training',
           note:`${t.trainedFor} Training`,trainedFor:t.trainedFor,mgmtSourceId:mgmtId});
       }
+      // Sync training to person profiles
+      for(const [role,personIds] of Object.entries(tRoleTrainees)){
+        for(const pid of personIds){
+          const p=getPerson(pid); if(!p) continue;
+          ensurePerson(p);
+          p.training.roles[role]={...( p.training.roles[role]||{}), date:ds, trainerId:ledBy||p.training.roles[role]?.trainerId||''};
+        }
+      }
       // Also create attendance records for attended-by people
       for(const pid of tAttended){
         state.calendarEvents.push({id:uid(),personId:pid,dateISO:iso,type:'training',
@@ -4895,6 +4901,7 @@ document.getElementById("pastBtn")?.addEventListener("click",()=>{state.ui.showA
 
 
 document.getElementById("editPersonBtn")?.addEventListener("click",editBasics);
+document.getElementById("editTrainingBtn")?.addEventListener("click",()=>openTrainingModal(state.selectedId));
 document.getElementById("addDisciplineBtn")?.addEventListener("click",()=>addEntry());
 document.getElementById("addNoteBtn")?.addEventListener("click",()=>openNoteModal(null));
 document.getElementById("addCalEventBtn")?.addEventListener("click",()=>openCalEventModal(null));
