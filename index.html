@@ -122,7 +122,7 @@
     .search-bar select { min-width: 180px; }
 
     /* ── MAIN ── */
-    main { max-width: 1400px; margin: 0 auto; padding: 16px 20px; }
+    main { padding: 16px 20px; }
 
     /* ── PANELS ── */
     .panel {
@@ -3468,7 +3468,7 @@ function openMgmtEventModal(existing, prefillDate){
     const evTime=rawTime?JSON.stringify({time:rawTime,tz:rawTZ}):'';
     const note=(document.getElementById('me_note').value||'').trim();
     const venueType=document.getElementById('me_venueType')?.value||'';
-    if(!venueType) return alert('Select a venue type.');
+    if(type==='opening'&&!venueType) return alert('Select a venue type.');
     const cancelled=document.getElementById('me_cancelled')?.checked||false;
     let venueTitle=(document.getElementById('me_venueTitle')?.value||'').trim();
     if(venueTitle==='__custom') venueTitle=(document.getElementById('me_venueTitleCustom')?.value||'').trim();
