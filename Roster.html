@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vanilla Venues — Roster</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,900;1,9..40,400&display=swap');
+
+  :root {
+    --bg: #080808;
+    --panel: #0f0f0f;
+    --surface: #1a1a1a;
+    --line: #222222;
+    --line2: #2a2a2a;
+    --text: #f0ece0;
+    --muted: #806a50;
+    --accent: #c9a84c;
+    --accent-dim: rgba(201,168,76,.12);
+    --accent-mid: rgba(201,168,76,.30);
+    --gold-hi: #e8c96e;
+    --good: #6aaa6a;
+    --good-dim: rgba(106,170,106,.12);
+    --good-border: rgba(106,170,106,.45);
+    --bad: #cc5a55;
+    --loa: #9988bb;
+    --r: 12px;
+    --r2: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+  }
+
+  input {
+    font: inherit; color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line2);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    outline: none; font-size: 13px;
+    transition: border-color .15s;
+    width: 100%;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: rgba(128,106,80,.5); }
+
+  /* ── Page ── */
+  .page { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+
+  /* ── Title Block ── */
+  .title-block { text-align: center; margin-bottom: 24px; }
+  .title-block h1 { font-weight: 900; font-size: 20px; color: var(--text); letter-spacing: .5px; }
+  .title-block .sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-top: 4px; }
+  .title-block .live { color: var(--good); font-size: 11px; margin-top: 6px; }
+  .title-block .live::before { content: '●'; margin-right: 5px; font-size: 8px; }
+  .badge {
+    display: inline-block; margin-top: 8px;
+    padding: 4px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid var(--accent-mid);
+    background: var(--accent-dim);
+    color: var(--gold-hi);
+  }
+
+  /* ── Search + Filters ── */
+  .toolbar { margin-bottom: 20px; }
+  .toolbar input { margin-bottom: 10px; }
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill-filter {
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid var(--line2);
+    background: rgba(26,26,26,.4);
+    color: var(--muted);
+    cursor: pointer; transition: all .15s;
+  }
+  .pill-filter:hover { border-color: var(--accent-mid); color: var(--gold-hi); }
+  .pill-filter.active { border-color: var(--accent-mid); background: var(--accent-dim); color: var(--gold-hi); }
+
+  /* ── Rank Groups ── */
+  .rank-group { margin-bottom: 6px; }
+  .rank-header {
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    padding: 14px 0 6px;
+  }
+
+  /* ── Employee Row ── */
+  .emp-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 140px 70px auto;
+    align-items: center;
+    gap: 0;
+    padding: 10px 12px;
+    border-radius: var(--r);
+    background: var(--panel);
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+    transition: border-color .12s;
+  }
+  .emp-row:hover { border-color: var(--line2); }
+
+  .emp-id { font-size: 12px; font-weight: 700; }
+  .emp-id.director   { color: var(--bad); }
+  .emp-id.manager    { color: #e09040; }
+  .emp-id.supervisor { color: var(--accent); }
+  .emp-id.senior     { color: var(--good); }
+  .emp-id.employee   { color: #6ca0d0; }
+
+  .emp-name-block {}
+  .emp-name { font-weight: 900; font-size: 13px; }
+  .emp-stage { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  .emp-discord { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .emp-tz { font-size: 11px; color: var(--muted); text-align: center; }
+
+  .role-chips { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+  .role-chip {
+    width: 28px; height: 20px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 700; letter-spacing: .3px;
+    border: 1px solid var(--line2);
+    background: rgba(26,26,26,.5);
+    color: var(--muted);
+    opacity: .3;
+  }
+  .role-chip.active { opacity: 1; }
+  .role-chip.dancer.active   { border-color: rgba(201,168,76,.5); background: rgba(201,168,76,.15); color: var(--gold-hi); }
+  .role-chip.security.active { border-color: rgba(108,160,208,.5); background: rgba(108,160,208,.15); color: #6ca0d0; }
+  .role-chip.dj.active       { border-color: rgba(153,136,187,.5); background: rgba(153,136,187,.15); color: var(--loa); }
+  .role-chip.bartender.active { border-color: rgba(106,170,106,.5); background: rgba(106,170,106,.15); color: var(--good); }
+
+  /* ── Column Headers ── */
+  .col-headers {
+    display: grid;
+    grid-template-columns: 50px 1fr 140px 70px auto;
+    align-items: center;
+    padding: 0 12px 6px;
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px;
+    color: rgba(128,106,80,.5);
+  }
+  .col-headers .role-head { display: flex; gap: 4px; justify-content: flex-end; }
+  .col-headers .role-head span { width: 28px; text-align: center; }
+
+  .footer {
+    text-align: center; padding: 24px; font-size: 10px;
+    color: rgba(128,106,80,.3); margin-top: 20px;
+  }
+
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .empty-state h2 { font-size: 14px; margin-bottom: 4px; color: var(--text); }
+
+  @media (max-width: 640px) {
+    .emp-row { grid-template-columns: 40px 1fr auto; gap: 8px; }
+    .emp-discord, .emp-tz, .col-headers { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="title-block">
+    <h1>Vanilla Unicorn</h1>
+    <div class="sub">Staff Roster</div>
+    <div class="live">Live</div>
+    <div class="badge" id="countBadge"></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="searchBox" placeholder="Search by name, discord, or ID…">
+    <div class="filter-row">
+      <div class="pill-filter active" data-role="all" onclick="setFilter('all')">All</div>
+      <div class="pill-filter" data-role="Dancer" onclick="setFilter('Dancer')">Dancer</div>
+      <div class="pill-filter" data-role="Security" onclick="setFilter('Security')">Security</div>
+      <div class="pill-filter" data-role="DJ" onclick="setFilter('DJ')">DJ</div>
+      <div class="pill-filter" data-role="Bartender" onclick="setFilter('Bartender')">Bartender</div>
+    </div>
+  </div>
+
+  <div class="col-headers">
+    <div>ID</div>
+    <div>Name</div>
+    <div>Discord</div>
+    <div style="text-align:center">TZ</div>
+    <div class="role-head"><span>DNC</span><span>SEC</span><span>DJ</span><span>BAR</span></div>
+  </div>
+
+  <div id="rosterContainer"></div>
+
+  <div class="footer">Synced from Vanilla Venues Employee Tracker</div>
+</div>
+
+<script>
+const STORE_KEY = 'vv_tracker_data';
+const RANK_ORDER = ['Director','Manager','Supervisor','Senior Employee','Employee'];
+const RANK_CLASS = {Director:'director',Manager:'manager',Supervisor:'supervisor','Senior Employee':'senior',Employee:'employee'};
+const ROLES = ['Dancer','Security','DJ','Bartender'];
+const ROLE_SHORT = {Dancer:'DNC',Security:'SEC',DJ:'DJ',Bartender:'BAR'};
+
+let activeFilter = 'all';
+
+const DEMO = [
+  {id:'1001',name:'Isabella Caponi',discord:'imperialbravo',stageName:'The Rim Reaper',timezone:'EST',rank:'Director',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1002',name:'Honey Valentine',discord:'like.honey',stageName:'',timezone:'EST',rank:'Director',roles:{Dancer:true,Security:false,DJ:false,Bartender:true}},
+  {id:'1003',name:'Hazey Valentine',discord:'hazeyyx',stageName:'',timezone:'CST',rank:'Manager',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1007',name:'Rogue Walker',discord:'ayyobabycakes',stageName:'Xhibitionist',timezone:'EST',rank:'Manager',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1010',name:'Majestic Poussey',discord:'oprettydisaster',stageName:'',timezone:'EST',rank:'Manager',roles:{Dancer:true,Security:true,DJ:false,Bartender:false}},
+  {id:'1056',name:'Will Sykes',discord:'toastmachinae',stageName:'Boyfriend',timezone:'EST',rank:'Manager',roles:{Dancer:false,Security:true,DJ:false,Bartender:true}},
+  {id:'1066',name:'Cassie Domingo',discord:'phoswen',stageName:'Cherish',timezone:'CST',rank:'Manager',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1013',name:'Juggs Mcnuggs',discord:'juggsmcnuggs',stageName:'',timezone:'CST',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1076',name:'Francesca Domingo',discord:'kayyy.c',stageName:'Fantasy',timezone:'EST',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1028',name:'Moona Sykes',discord:'sailorromantic',stageName:'Anomaly',timezone:'EST',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1040',name:'Eli Lucero',discord:'meddzy',stageName:'',timezone:'EST',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1136',name:'Elliot Silverton',discord:'lalunatic9',stageName:'Elfine',timezone:'GMT+2',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1005',name:'Baylee Patron',discord:'hbs1321',stageName:'',timezone:'CST',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1081',name:'Damien Wolfhart',discord:'RedheadedTwo',stageName:'HartBeatz',timezone:'GMT',rank:'Supervisor',roles:{Dancer:false,Security:false,DJ:true,Bartender:false}},
+  {id:'1141',name:'Bella Rose',discord:'3venin4rcadia',stageName:'Viper',timezone:'CST',rank:'Supervisor',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1027',name:'Chef Dasilva',discord:'cheffrmda3rd',stageName:'',timezone:'CST',rank:'Supervisor',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1124',name:'Ethan Solo',discord:'therock2347',stageName:'DB',timezone:'EST',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1016',name:'Isla Reed',discord:'xo_moose_xo',stageName:'Fireball',timezone:'CST',rank:'Senior Employee',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1108',name:'Miko Cortez',discord:'ybn01',stageName:'Hellcat',timezone:'GMT',rank:'Senior Employee',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1126',name:'Djerome Wright',discord:'valid.legend',stageName:'Big D',timezone:'EST',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1129',name:'Bd Manson',discord:'brain_damaged96',stageName:'',timezone:'MST',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1082',name:'Jac Frost',discord:'AdaptMonkeyz',stageName:'',timezone:'GMT',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1152',name:'Frank DaSilva',discord:'jxckwxlker',stageName:'',timezone:'GMT',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1138',name:'Cassie Realest',discord:'simplyevoo',stageName:'',timezone:'PST',rank:'Senior Employee',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1157',name:'Alana Kastel',discord:'imyinni',stageName:'',timezone:'CST',rank:'Senior Employee',roles:{Dancer:true,Security:false,DJ:false,Bartender:false}},
+  {id:'1165',name:'Josh Ritz',discord:'Josh_ritz',stageName:'',timezone:'GMT',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+  {id:'1169',name:'Tre Dingle',discord:'jeztre',stageName:'',timezone:'PST',rank:'Senior Employee',roles:{Dancer:false,Security:true,DJ:false,Bartender:false}},
+];
+
+function getEmployees() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.employees && d.employees.length) return d.employees;
+    }
+  } catch(e) {}
+  return DEMO;
+}
+
+function setFilter(role) {
+  activeFilter = role;
+  document.querySelectorAll('.pill-filter').forEach(b =>
+    b.classList.toggle('active', b.dataset.role === role)
+  );
+  render();
+}
+
+function render() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  let emps = getEmployees();
+
+  if (q) emps = emps.filter(e =>
+    (e.name||'').toLowerCase().includes(q) ||
+    (e.discord||'').toLowerCase().includes(q) ||
+    (e.stageName||'').toLowerCase().includes(q) ||
+    (e.id||'').includes(q)
+  );
+  if (activeFilter !== 'all') emps = emps.filter(e => e.roles && e.roles[activeFilter]);
+
+  document.getElementById('countBadge').textContent = `${emps.length} Active Staff`;
+  const container = document.getElementById('rosterContainer');
+
+  if (!emps.length) {
+    container.innerHTML = '<div class="empty-state"><h2>No matches</h2></div>';
+    return;
+  }
+
+  let html = '';
+  for (const rank of RANK_ORDER) {
+    const group = emps.filter(e => e.rank === rank);
+    if (!group.length) continue;
+    const cls = RANK_CLASS[rank];
+
+    html += `<div class="rank-group"><div class="rank-header">${rank}s</div>`;
+
+    for (const e of group) {
+      const chips = ROLES.map(r => {
+        const on = e.roles && e.roles[r];
+        return `<div class="role-chip ${r.toLowerCase()}${on?' active':''}">${ROLE_SHORT[r]}</div>`;
+      }).join('');
+
+      html += `
+        <div class="emp-row">
+          <div class="emp-id ${cls}">${e.id}</div>
+          <div class="emp-name-block">
+            <div class="emp-name">${e.name}</div>
+            ${e.stageName ? `<div class="emp-stage">${e.stageName}</div>` : ''}
+          </div>
+          <div class="emp-discord">${e.discord||'—'}</div>
+          <div class="emp-tz">${e.timezone||'—'}</div>
+          <div class="role-chips">${chips}</div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+document.getElementById('searchBox').addEventListener('input', render);
+setFilter('all');
+</script>
+</body>
+</html>
