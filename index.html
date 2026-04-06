@@ -2144,6 +2144,7 @@ function renderTraining(pid){
 }
 
 function openTrainingModal(pid){
+  if(!canEdit()){ toast('Supervisor+ required'); return; }
   const p=getPerson(pid); if(!p) return;
   const trainers=managementTrainerOptions();
   const trOpts=(sel)=>[`<option value="">—</option>`].concat(trainers.map(t=>`<option value="${escapeHtml(t.id)}" ${t.id===sel?"selected":""}>${escapeHtml(t.label)}</option>`)).join('');
@@ -2659,6 +2660,7 @@ function addPerson(){
 }
 
 function editBasics(){
+  if(!canEdit()){ toast('Supervisor+ required'); return; }
   const p=getPerson(state.selectedId); if(!p) return;
   openModal("Edit Info",`
     <div class="row"><div><div class="muted small">Employee #</div><input id="e_empNum" value="${escapeHtml(p.employeeNumber||'')}"></div>
