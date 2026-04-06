@@ -590,7 +590,7 @@
         <div class="panel profile-two-col-panel">
           <div class="panel-head" style="cursor:pointer" data-collapse="training" onclick="if(!event.target.matches('button'))toggleCollapse('training')">
             <div class="h">Training</div>
-            <button class="btn-ghost btn-sm" id="editTrainingBtn">Edit</button>
+            <button class="btn-ghost btn-sm" id="editTrainingBtn" onclick="openTrainingModal(state.selectedId)">Edit</button>
           </div>
           <div class="panel-body" id="trainSnap"></div>
         </div>
