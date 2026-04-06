@@ -566,13 +566,13 @@
       <div class="panel">
         <div class="panel-head" style="cursor:pointer" data-collapse="calendar" onclick="if(!event.target.matches('button,input,select,span'))toggleCollapse('calendar')">
           <div class="h">Calendar</div>
-          <div class="row tight" style="gap:6px">
+          <div class="row tight" style="gap:6px;align-items:center">
             <button class="btn-ghost btn-sm" id="pPrevMonth">←</button>
             <span class="pill" id="pMonthLabel">Month</span>
-            <span class="pill accent" id="pCalTotal">0 hr</span>
-            <span class="pill bad" id="pCalNCNS" style="display:none">0 NCNS</span>
             <button class="btn-ghost btn-sm" id="pNextMonth">→</button>
-            <button class="btn-accent btn-sm" id="addCalEventBtn" data-perm-edit>+ Event</button>
+            <span class="pill accent" id="pCalTotal" style="margin-left:4px">0 hr</span>
+            <span class="pill bad" id="pCalNCNS" style="display:none">0 NCNS</span>
+            <button class="btn-accent btn-sm" id="addCalEventBtn" data-perm-edit style="margin-left:auto">+ Event</button>
           </div>
         </div>
         <div class="panel-body">
@@ -680,6 +680,13 @@
       <div class="panel">
         <div class="panel-head">
           <div class="h">Venue Tracker</div>
+          <div class="row tight" style="gap:6px;flex-wrap:wrap">
+            <span class="muted small">Range:</span>
+            <input type="date" id="vtDateFrom" style="font-size:11px;padding:3px 6px;width:110px"/>
+            <input type="date" id="vtDateTo" style="font-size:11px;padding:3px 6px;width:110px"/>
+            <button class="btn-ghost btn-sm" id="vtDateApply" style="font-size:10px">Apply</button>
+            <button class="btn-ghost btn-sm" id="vtDateClear" style="font-size:10px">Clear</button>
+          </div>
         </div>
         <div class="panel-body" id="venueBody"></div>
       </div>
@@ -1475,20 +1482,14 @@ function activityStatus(pid){
   const now = new Date();
   if(isOnLOA(pid, now)) return { state:'LOA', message:null };
 
-  const thisMonth = startOfMonth(now);
-  const thisMonthMs = getMonthlyHoursMs(pid, thisMonth);
-
-  if(thisMonthMs >= MONTHLY_MIN_MS) return { state:'ACTIVE', message:null };
-
   const lastIn = lastClockInISO(pid);
   const daysSinceLastIn = lastIn ? (Date.now()-new Date(lastIn).getTime())/(1000*60*60*24) : Infinity;
 
-  if(daysSinceLastIn >= 30){
-    return { state:'INACTIVE', message:'inactivity', lastClockIn:lastIn };
+  if(daysSinceLastIn < 30){
+    return { state:'OK', message:null, lastClockIn:lastIn };
   }
 
-  const daysLeft = new Date(thisMonth.getFullYear(), thisMonth.getMonth()+1, 0).getDate() - now.getDate();
-  return { state:'PENDING', message:null, daysLeft };
+  return { state:'INACTIVE', message:'inactivity', lastClockIn:lastIn };
 }
 
 function activityMsgTemplate(which, name, lastClockIn){
@@ -1811,8 +1812,7 @@ function renderHub(){
     let badge="";
     if(a.state==='LOA') badge=`<span class="pill loa">LOA</span>`;
     else if(a.state==='INACTIVE') badge=`<span class="pill bad">INACTIVE 30d+</span>`;
-    else if(a.state==='PENDING') badge=`<span class="pill accent">${it.monthly.countedMs>0?durLabel(it.monthly.countedMs)+' this mo':'PENDING'}</span>`;
-    else badge=`<span class="pill good">ACTIVE</span>`;
+    else badge=`<span class="pill good">OK</span>`;
     if(it.strikes>=3) badge+=` <span class="pill bad">3 STRIKES</span>`;
     if(it.vuDancerStreak>=3) badge+=` <span class="pill bad">${it.vuDancerStreak} VU Dancer — rotate</span>`;
 
@@ -1921,7 +1921,6 @@ function renderOverview(){
     let statusBadge='';
     if(a.state==='LOA') statusBadge=`<span class="pill loa" style="font-size:9px">LOA</span>`;
     else if(a.state==='INACTIVE') statusBadge=`<span class="pill bad" style="font-size:9px">INACTIVE</span>`;
-    else if(a.state==='PENDING') statusBadge=`<span class="pill accent" style="font-size:9px">PENDING</span>`;
     else statusBadge=`<span class="pill good" style="font-size:9px">OK</span>`;
 
     const nameColor=it.isMgmt?'color:var(--accent)':'';
@@ -1983,8 +1982,7 @@ function renderProfile(){
   let aBadge="";
   if(activity.state==='LOA') aBadge=`<span class="pill loa">ON LOA</span>`;
   else if(activity.state==='INACTIVE') aBadge=`<span class="pill bad">INACTIVE — 30+ days since last clock-in</span>`;
-  else if(activity.state==='PENDING') aBadge=`<span class="pill accent">Needs 1 shift · ${activity.daysLeft}d left</span>`;
-  else aBadge=`<span class="pill good">ACTIVE</span>`;
+  else aBadge=`<span class="pill good">OK</span>`;
 
   $("#profilePanel").innerHTML=`
     <div class="profile-header">
@@ -2304,9 +2302,13 @@ function renderCalendar(pid){
         const vColor=ce.cancelled?'#e05555':venueTypeColor(ce.venueType);
         const vLabel=ce.venueTitle||venueTypeLabel(ce.venueType);
         const cStyle=ce.cancelled?'background:#e05555;color:#080808;border-color:#e05555;':'';
+        // Check for NCNS
+        let isNCNS=false;
+        if(ce.mgmtSourceId){const srcEvt=(state.mgmtEvents||[]).find(m=>m.id===ce.mgmtSourceId);if(srcEvt)isNCNS=(srcEvt.roster||[]).some(r=>r.personId===pid&&r.ncns);}
+        const ncnsStyle=isNCNS?'background:var(--bad-dim);border-color:var(--bad);color:var(--bad);':'';
         let ceTime='';
         if(ce.mgmtSourceId){const srcEvt=(state.mgmtEvents||[]).find(m=>m.id===ce.mgmtSourceId);if(srcEvt)ceTime=displayEventTimeFromStored(srcEvt.eventTime,srcEvt.dateISO);}
-        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:${vColor};border:1.5px solid ${vColor};display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:3px;white-space:nowrap;${cStyle}" title="${escapeHtml(vLabel)}">${ceTime?escapeHtml(ceTime)+' · ':''}${escapeHtml(vLabel)}${ce.cancelled?' ✕':''}</span>`;
+        tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:${vColor};border:1.5px solid ${vColor};display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;margin-top:3px;white-space:nowrap;${cStyle}${ncnsStyle}" title="${escapeHtml(vLabel)}${isNCNS?' (NCNS)':''}">${isNCNS?'NCNS · ':''}${ceTime?escapeHtml(ceTime)+' · ':''}${escapeHtml(vLabel)}${ce.cancelled?' ✕':''}</span>`;
       } else if(ce.type==='training'){
         tags+=`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;color:#6ec0cc;border:1.5px solid #6ec0cc;display:block;width:fit-content;margin-top:3px">Training</span>`;
       } else if(ce.type==='interview'){
@@ -2362,7 +2364,7 @@ function buildDayDetailHtml(dayKey,info,loa,calEvts=[],shiftTag=null){
 
   if(loa){
     html+=`<div class="pill loa" style="margin-bottom:6px">LOA — ${escapeHtml(loa.reason||"")}</div>
-      <div class="muted small">${escapeHtml(fmtMDY(loa.startISO))} → ${escapeHtml(fmtMDY(loa.endISO))}</div>`;
+      <div class="muted small">${escapeHtml(fmtMDY(new Date(loa.startISO)))} → ${escapeHtml(fmtMDY(new Date(loa.endISO)))}</div>`;
   }
 
   if(info&&info.segments.length){
@@ -2385,12 +2387,16 @@ function buildDayDetailHtml(dayKey,info,loa,calEvts=[],shiftTag=null){
       const evColor=ce.venueType?venueTypeColor(ce.venueType):(typeColors[ce.type]||typeColors.other);
       const evLabel=ce.venueType?venueTypeLabel(ce.venueType):(typeLabels[ce.type]||ce.type);
       const isSynced=!!ce.mgmtSourceId;
-      html+=`<div style="padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12px">
+      // Check NCNS
+      let isNCNS=false;
+      if(ce.mgmtSourceId&&ce.personId){const srcEvt=(state.mgmtEvents||[]).find(m=>m.id===ce.mgmtSourceId);if(srcEvt)isNCNS=(srcEvt.roster||[]).some(r=>r.personId===ce.personId&&r.ncns);}
+      html+=`<div style="padding:8px;border:1px solid ${isNCNS?'var(--bad-border)':'var(--line)'};border-radius:8px;margin-bottom:6px;font-size:12px;${isNCNS?'background:var(--bad-dim);':''}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
           <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
             <span class="pill" style="font-size:10px;border-color:${evColor}">${escapeHtml(evLabel)}</span>
             ${ce.venueTitle?`<span style="font-weight:700">${escapeHtml(ce.venueTitle)}</span>`:''}
             ${ce.shiftRole?`<span class="muted">· ${escapeHtml(ce.shiftRole)}</span>`:''}
+            ${isNCNS?`<span class="pill bad" style="font-size:10px">NCNS</span>`:''}
           </div>
           ${!isSynced?`<div style="display:flex;gap:4px">
             <button class="btn-ghost btn-sm" data-edit-cal="${escapeHtml(ce.id)}">Edit</button>
@@ -2528,6 +2534,7 @@ function renderReviewPage(){
   hideAllViews();
   document.getElementById('reviewView').style.display="";
 
+  state.monthCursor=new Date().toISOString();
   const monthDate=startOfMonth(new Date(state.monthCursor));
   const sub=document.getElementById('reviewSub');
   if(sub) sub.textContent=`Reviewing ${fmtMonthLabel(monthDate)}`;
@@ -2826,6 +2833,7 @@ function renderMgmtCal(){
   document.getElementById('mgmtCalView').style.display="";
   state.ui.view="mgmtcal"; save(); if(typeof updateSidebarActive==="function") updateSidebarActive("mgmtcal");
 
+  state.mgmtMonthCursor=new Date().toISOString();
   const md=startOfMonth(new Date(state.mgmtMonthCursor));
   $("#mcMonthLabel").textContent=fmtMonthLabel(md);
   const year=md.getFullYear(), mIdx=md.getMonth();
@@ -3135,12 +3143,19 @@ function openMgmtDayDetail(dayKey,evts){
   });
   document.querySelectorAll('[data-del-mgmt]').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      const delId=btn.getAttribute('data-del-mgmt');
-      // Also remove any profile calendar events synced from this mgmt event
-      state.calendarEvents=(state.calendarEvents||[]).filter(ce=>ce.mgmtSourceId!==delId);
-      auditLog('Event deleted', '—', delId);
-      state.mgmtEvents=(state.mgmtEvents||[]).filter(x=>x.id!==delId);
-      save();closeModal();renderMgmtCal();
+      if(btn.dataset.confirming==='true'){
+        const delId=btn.getAttribute('data-del-mgmt');
+        const me=(state.mgmtEvents||[]).find(x=>x.id===delId);
+        state.calendarEvents=(state.calendarEvents||[]).filter(ce=>ce.mgmtSourceId!==delId);
+        auditLog('Event deleted', me?.venueTitle||'—', fmtMDY(new Date(me?.dateISO||Date.now())));
+        state.mgmtEvents=(state.mgmtEvents||[]).filter(x=>x.id!==delId);
+        save();closeModal();renderMgmtCal();
+      } else {
+        btn.dataset.confirming='true';
+        btn.textContent='Are you sure?';
+        btn.className='btn-danger btn-sm';
+        setTimeout(()=>{if(btn){btn.dataset.confirming='';btn.textContent='Delete';btn.className='btn-ghost btn-sm';}},3000);
+      }
     });
   });
 }
@@ -3884,8 +3899,8 @@ function renderLeadership(pid, p){
   }
   panel.style.display='';
 
-  // Month cursor
-  if(!renderLeadership._month) renderLeadership._month=new Date().toISOString();
+  // Month cursor — always start at current month
+  renderLeadership._month=renderLeadership._month||new Date().toISOString();
   const curMonth=startOfMonth(new Date(renderLeadership._month));
 
   const fromEl=document.getElementById('ldFrom');
@@ -3909,20 +3924,18 @@ function renderLeadership(pid, p){
   }).sort((a,b)=>(dateValueFromISO(b.dateISO)||'').localeCompare(dateValueFromISO(a.dateISO)||''));
 
   const led={openings:[],trainings:[],interviews:[]};
-  const attended={openings:[],trainings:[],interviews:[]};
+  const attended={trainings:[],interviews:[]};
 
   for(const me of allMgmt){
     const dateStr=fmtMDY(new Date(me.dateISO));
     const isLed=me.ledBy===pid;
     const isAttended=(me.attendedBy||[]).includes(pid)||(me.taggedSupers||[]).includes(pid)||(me.taggedSeniors||[]).includes(pid);
-    const isOnRoster=(me.roster||[]).some(r=>r.personId===pid&&!r.ncns);
 
     if(me.type==='event'){
       const label=me.venueTitle||venueTypeLabel(me.venueType||'');
       const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
       const entry={date:dateStr,label,color,cancelled:!!me.cancelled};
       if(isLed) led.openings.push(entry);
-      else if(isOnRoster) attended.openings.push(entry);
     } else if(me.type==='training'){
       const entry={date:dateStr,label:'Training',color:'#6ec0cc'};
       if(isLed) led.trainings.push(entry);
@@ -3943,7 +3956,7 @@ function renderLeadership(pid, p){
   }
 
   const ledTotal=led.openings.length+led.trainings.length+led.interviews.length;
-  const attTotal=attended.openings.length+attended.trainings.length+attended.interviews.length;
+  const attTotal=attended.trainings.length+attended.interviews.length;
 
   let html=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -3958,9 +3971,7 @@ function renderLeadership(pid, p){
       </div>
       <div>
         <div style="font-weight:700;font-size:13px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px">Attended (${attTotal})</div>
-        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:6px 0 2px">Openings (${attended.openings.length})</div>
-        ${section(attended.openings,'None')}
-        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Trainings (${attended.trainings.length})</div>
+        <div style="font-weight:600;font-size:11px;color:var(--muted);margin:6px 0 2px">Trainings (${attended.trainings.length})</div>
         ${section(attended.trainings,'None')}
         <div style="font-weight:600;font-size:11px;color:var(--muted);margin:8px 0 2px">Interviews (${attended.interviews.length})</div>
         ${section(attended.interviews,'None')}
@@ -4023,12 +4034,11 @@ function renderLeaderDash(){
   // Compute stats per person
   const stats=leaders.map(p=>{
     let ledEvents=0,ledTrainings=0,ledInterviews=0;
-    let attOpenings=0,attTrainings=0,attInterviews=0;
+    let attTrainings=0,attInterviews=0;
     const ledList=[],attList=[];
 
     for(const me of evts){
       const isLed=me.ledBy===p.id;
-      const isOnRoster=(me.roster||[]).some(r=>r.personId===p.id&&!r.ncns);
       const isAttended=(me.attendedBy||[]).includes(p.id)||(me.taggedSupers||[]).includes(p.id)||(me.taggedSeniors||[]).includes(p.id);
       const dateStr=fmtMDY(new Date(me.dateISO));
 
@@ -4038,9 +4048,6 @@ function renderLeaderDash(){
           const label=me.venueTitle||venueTypeLabel(me.venueType||'');
           const color=me.cancelled?'#e05555':venueTypeColor(me.venueType||'');
           ledList.push({date:dateStr,type:'Opening',label,color,cancelled:!!me.cancelled,rosterCount:(me.roster||[]).length});
-        } else if(isOnRoster){
-          attOpenings++;
-          attList.push({date:dateStr,type:'Opening',label:me.venueTitle||venueTypeLabel(me.venueType||''),color:venueTypeColor(me.venueType||''),ledBy:me.ledBy?personLabel(me.ledBy):'—'});
         }
       }
       if(me.type==='training'){
@@ -4054,13 +4061,13 @@ function renderLeaderDash(){
     }
 
     const ledTotal=ledEvents+ledTrainings+ledInterviews;
-    const attTotal=attOpenings+attTrainings+attInterviews;
+    const attTotal=attTrainings+attInterviews;
     const total=ledTotal+attTotal;
 
     // Get recent notes
     const notes=(state.notesEntries||[]).filter(n=>n.personId===p.id).sort((a,b)=>(b.dateISO||'').localeCompare(a.dateISO||'')).slice(0,5);
 
-    return {p,ledEvents,ledTrainings,ledInterviews,attOpenings,attTrainings,attInterviews,ledTotal,attTotal,total,ledList,attList,notes};
+    return {p,ledEvents,ledTrainings,ledInterviews,attTrainings,attInterviews,ledTotal,attTotal,total,ledList,attList,notes};
   }).sort((a,b)=>b.total-a.total);
 
   let html=`<div class="muted small" style="font-weight:700;margin-bottom:12px">${escapeHtml(rangeLabel)} · ${leaders.length} leadership staff</div>`;
@@ -4088,7 +4095,6 @@ function renderLeaderDash(){
         <div style="background:var(--surface);border-radius:6px;padding:6px 8px">
           <div style="font-weight:700;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Attended (${s.attTotal})</div>
           <div style="display:flex;gap:8px">
-            <span title="Openings" style="color:var(--accent)">${s.attOpenings} <span style="color:var(--muted);font-size:10px">opens</span></span>
             <span title="Trainings" style="color:#6ec0cc">${s.attTrainings} <span style="color:var(--muted);font-size:10px">train</span></span>
             <span title="Interviews" style="color:#cc7a6a">${s.attInterviews} <span style="color:var(--muted);font-size:10px">int</span></span>
           </div>
@@ -4462,7 +4468,7 @@ function renderAudit(){
 
   for(const e of entries){
     const d=new Date(e.timestamp);
-    const ts=d.toLocaleString(undefined,{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const ts=d.toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     const col=auditActionColor(e.action);
     html+=`<tr style="border-bottom:1px solid var(--line)">
       <td style="padding:6px 8px;font-size:11px;color:var(--muted);white-space:nowrap">${escapeHtml(ts)}</td>
@@ -4742,7 +4748,17 @@ function renderVenueTracker(){
   document.getElementById('venueView').style.display="";
   state.ui.view="venues"; save(); updateSidebarActive("venues");
   const host=document.getElementById('venueBody');
-  const events=(state.mgmtEvents||[]).filter(me=>me.type==='event');
+  const vtFrom=document.getElementById('vtDateFrom');
+  const vtTo=document.getElementById('vtDateTo');
+  const hasRange=vtFrom&&vtFrom.value&&vtTo&&vtTo.value;
+  const fromStr=vtFrom?.value||'2000-01-01';
+  const toStr=vtTo?.value||'2099-12-31';
+
+  const events=(state.mgmtEvents||[]).filter(me=>{
+    if(me.type!=='event') return false;
+    const dk=dateValueFromISO(me.dateISO);
+    return dk>=fromStr&&dk<=toStr;
+  });
   const venueStats={};
   for(const v of VENUES) venueStats[v]={total:0,cancelled:0,success:0};
   for(const me of events){
@@ -4752,7 +4768,11 @@ function renderVenueTracker(){
     if(me.cancelled) venueStats[vn].cancelled++;
     else venueStats[vn].success++;
   }
-  let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+
+  const rangeLabel=hasRange?`${fmtMDY(new Date(fromStr+'T00:00:00'))} — ${fmtMDY(new Date(toStr+'T00:00:00'))}`:'All time';
+
+  let html=`<div class="muted small" style="font-weight:700;margin-bottom:10px">${escapeHtml(rangeLabel)} · ${events.length} openings</div>`;
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
   for(const [name,s] of Object.entries(venueStats)){
     if(s.total===0&&VENUES.includes(name)){
       html+=`<div class="card"><div class="card-name">${escapeHtml(name)}</div><div class="muted small" style="margin-top:4px">No openings yet</div></div>`;
@@ -4790,6 +4810,8 @@ document.getElementById("backupFile")?.addEventListener("change",e=>{const f=e.t
 document.getElementById('ldashApply')?.addEventListener('click',renderLeaderDash);
 document.getElementById('ldashClear')?.addEventListener('click',()=>{const f=document.getElementById('ldashFrom'),t=document.getElementById('ldashTo');if(f)f.value='';if(t)t.value='';renderLeaderDash();});
 document.getElementById('addBlacklistBtn')?.addEventListener('click',()=>openBlacklistModal(null));
+document.getElementById('vtDateApply')?.addEventListener('click',renderVenueTracker);
+document.getElementById('vtDateClear')?.addEventListener('click',()=>{const f=document.getElementById('vtDateFrom'),t=document.getElementById('vtDateTo');if(f)f.value='';if(t)t.value='';renderVenueTracker();});
 document.getElementById('spSearch')?.addEventListener('input',renderShiftPerf);
 document.getElementById('spDateFrom')?.addEventListener('change',()=>{renderShiftPerf._filterDay='';renderShiftPerf();});
 document.getElementById('spDateTo')?.addEventListener('change',()=>{renderShiftPerf._filterDay='';renderShiftPerf();});
