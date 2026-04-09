@@ -470,7 +470,7 @@
     <button class="nav-item" id="sidePromo" data-perm-edit>EOTM / Promo</button>
     <button class="nav-item" id="sideVenues" data-perm-edit>Venue Tracker</button>
     <button class="nav-item" id="sideRental" data-perm-edit>Rental Calculator</button>
-    <button class="nav-item" id="sideRentalReq" data-perm-edit>Rental Requests</button>
+    <button class="nav-item" id="sideRentalReq" data-perm-edit>Rental Requests <span id="rrPendingBadge" style="display:none;margin-left:4px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:#c9a84c22;color:#c9a84c;border:1px solid #c9a84c55"></span></button>
     <button class="nav-item" id="sideTemplates" data-perm-edit>Templates</button>
     <button class="nav-item" id="sideAudit" data-perm-edit>Audit Log</button>
     <div class="nav-divider"></div>
@@ -784,8 +784,8 @@
           <div class="h">Venue Rental Requests</div>
           <div style="display:flex;gap:6px;align-items:center">
             <span id="rrCountBadge" class="muted small"></span>
-            <button class="btn-ghost btn-sm rrFilterBtn active" data-f="all" onclick="setRRFilter('all')">All</button>
-            <button class="btn-ghost btn-sm rrFilterBtn" data-f="pending" onclick="setRRFilter('pending')" style="color:#c9a84c">Pending</button>
+            <button class="btn-ghost btn-sm rrFilterBtn active" data-f="pending" onclick="setRRFilter('pending')" style="color:#c9a84c">Pending</button>
+            <button class="btn-ghost btn-sm rrFilterBtn" data-f="all" onclick="setRRFilter('all')">All</button>
             <button class="btn-ghost btn-sm rrFilterBtn" data-f="approved" onclick="setRRFilter('approved')" style="color:#6aaa6a">Approved</button>
             <button class="btn-ghost btn-sm rrFilterBtn" data-f="denied" onclick="setRRFilter('denied')" style="color:#cc5a55">Denied</button>
           </div>
@@ -5091,12 +5091,15 @@ document.getElementById('signOutBtn')?.addEventListener('click', ()=>{
 // RENTAL REQUESTS PAGE
 // ═══════════════════════════════════════════
 let rrData = {};
-let rrFilter = 'all';
+let rrFilter = 'pending';
 const rrRef = db.ref('rentalRequests');
 
 // Live listener
 rrRef.on('value', snap => {
   rrData = snap.val() || {};
+  const pending = Object.values(rrData).filter(r => r.status === 'pending').length;
+  const badge = document.getElementById('rrPendingBadge');
+  if(badge){ badge.textContent = pending; badge.style.display = pending ? '' : 'none'; }
   if(state.ui?.view === 'rentalreq') renderRentalRequests();
 });
 
@@ -5213,7 +5216,7 @@ function renderRentalRequests() {
       }
     }
     html += '<div style="display:flex;gap:6px;margin-top:6px">';
-    html += '<input class="input" id="rrNote-'+r.id+'" placeholder="Add a note..." style="flex:1;font-size:12px;padding:6px 10px">';
+    html += '<textarea class="input" id="rrNote-'+r.id+'" placeholder="Add a note..." rows="3" style="flex:1;font-size:12px;padding:6px 10px;resize:vertical;min-height:60px;line-height:1.4"></textarea>';
     html += '<button class="btn-accent btn-sm" onclick="addRRNote(&quot;'+r.id+'&quot;)">Add</button>';
     html += '</div></div>';
 
