@@ -391,7 +391,7 @@ body {
 <!-- ═══ NAVIGATION ═══ -->
 <nav class="topnav">
   <div class="nav-brand" onclick="showPage('home')">
-    <img src="vv_logo.png" alt="VV">
+    <img src="images/vv logo png.png" alt="VV">
     <span>Vanilla Venues</span>
   </div>
   <div class="nav-hamburger" onclick="toggleMobileNav()">
@@ -409,7 +409,7 @@ body {
 <!-- ═══ HOME ═══ -->
 <div class="page active" id="page-home">
   <div class="hero">
-    <img src="vv_logo.png" alt="Vanilla Venues" class="hero-logo">
+    <img src="images/vv logo png.png" alt="Vanilla Venues" class="hero-logo">
     <h1 class="hero-title">Vanilla Venues</h1>
     <p class="hero-tagline">Where the city comes alive.</p>
     <div class="hero-divider"></div>
@@ -504,7 +504,6 @@ body {
       <div class="pill-group" id="vehiclePills">
         <div class="pill" data-field="vehicle" data-val="partybus" onclick="toggleMultiPill(this)">Party bus · $15k</div>
         <div class="pill" data-field="vehicle" data-val="helicopter" onclick="toggleMultiPill(this)">Helicopter · $20k</div>
-        <div class="pill" data-field="vehicle" data-val="limo" onclick="toggleMultiPill(this)">Limousine</div>
       </div>
     </div>
 
@@ -668,7 +667,7 @@ const VENUES = [
 
 const STAFF_PRICES = { security: 5000, dancer: 5000, bartender: 5000, dj: 10000 };
 const STAFF_LABELS = { security:'Security', dancer:'Dancers', bartender:'Bartenders', dj:'DJ' };
-const VEHICLE_PRICES = { partybus: 15000, helicopter: 20000, limo: 0 };
+const VEHICLE_PRICES = { partybus: 15000, helicopter: 20000 };
 
 let currentVenue = null;
 let bookingState = { staff:{}, vehicles:[], pills:{} };

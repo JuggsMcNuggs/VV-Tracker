@@ -5138,8 +5138,8 @@ function renderRentalRequests() {
 
     // Header row
     html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
-    html += '<div><div style="font-weight:700;font-size:15px">'+esc(r.venue||'Unknown')+'</div>';
-    html += '<div class="muted small">'+esc(r.contact?.name||'—')+' · '+esc(r.contact?.discord||'—')+' · '+esc(r.contact?.phone||'—')+'</div></div>';
+    html += '<div><div style="font-weight:700;font-size:15px">'+escapeHtml(r.venue||'Unknown')+'</div>';
+    html += '<div class="muted small">'+escapeHtml(r.contact?.name||'—')+' · '+escapeHtml(r.contact?.discord||'—')+' · '+escapeHtml(r.contact?.phone||'—')+'</div></div>';
     html += '<div style="display:flex;gap:6px;align-items:center">';
     html += '<span style="font-size:11px;font-weight:600;color:'+statusColor+';padding:4px 12px;border-radius:999px;border:1px solid '+statusColor+'30;background:'+statusColor+'18">'+statusLabel+'</span>';
     if(r.status==='pending') {
@@ -5187,7 +5187,7 @@ function renderRentalRequests() {
     // Guest list
     if(r.event?.visibility==='private' && r.event?.guestList) {
       html += '<div style="margin-bottom:12px"><div class="muted small" style="margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Guest list</div>';
-      html += '<div class="muted small" style="white-space:pre-wrap">'+esc(r.event.guestList)+'</div></div>';
+      html += '<div class="muted small" style="white-space:pre-wrap">'+escapeHtml(r.event.guestList)+'</div></div>';
     }
 
     // Anything else
@@ -5208,8 +5208,8 @@ function renderRentalRequests() {
     if(notes.length) {
       for(const n of notes) {
         html += '<div style="background:var(--bg);border-radius:6px;padding:8px 10px;margin-bottom:4px;font-size:12px">';
-        html += '<span class="muted" style="font-size:10px">'+esc(n.by||'—')+' · '+new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+new Date(n.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>';
-        html += '<div style="margin-top:2px">'+esc(n.text)+'</div></div>';
+        html += '<span class="muted" style="font-size:10px">'+escapeHtml(n.by||'—')+' · '+new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+new Date(n.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>';
+        html += '<div style="margin-top:2px">'+escapeHtml(n.text)+'</div></div>';
       }
     }
     html += '<div style="display:flex;gap:6px;margin-top:6px">';
@@ -5223,7 +5223,7 @@ function renderRentalRequests() {
 }
 
 function rrChip(label, value) {
-  return '<div style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.3px">'+esc(label)+'</div><div style="font-size:13px;font-weight:600;margin-top:2px">'+esc(value)+'</div></div>';
+  return '<div style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.3px">'+escapeHtml(label)+'</div><div style="font-size:13px;font-weight:600;margin-top:2px">'+escapeHtml(value)+'</div></div>';
 }
 
 function setRRStatus(id, status) {
