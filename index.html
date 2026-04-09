@@ -1021,7 +1021,7 @@ function ensureState(data){
   data.ui.reviewTab||="eotm"; data.ui.view||="hub";
   data.profileMonthCursor||=data.monthCursor||new Date().toISOString();
   data.overviewMonthCursor||=data.overviewMonthCursor||new Date().toISOString();
-  data.mgmtMonthCursor||=data.monthCursor||new Date().toISOString();
+  data.mgmtMonthCursor=new Date().toISOString();
   return data;
 }
 
