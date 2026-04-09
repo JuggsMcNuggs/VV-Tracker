@@ -470,6 +470,7 @@
     <button class="nav-item" id="sidePromo" data-perm-edit>EOTM / Promo</button>
     <button class="nav-item" id="sideVenues" data-perm-edit>Venue Tracker</button>
     <button class="nav-item" id="sideRental" data-perm-edit>Rental Calculator</button>
+    <button class="nav-item" id="sideRentalReq" data-perm-edit>Rental Requests</button>
     <button class="nav-item" id="sideTemplates" data-perm-edit>Templates</button>
     <button class="nav-item" id="sideAudit" data-perm-edit>Audit Log</button>
     <div class="nav-divider"></div>
@@ -775,6 +776,26 @@
         </div>
       </div>
     </section>
+
+    <!-- RENTAL REQUESTS -->
+    <section id="rentalReqView" style="display:none;">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="h">Venue Rental Requests</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="rrCountBadge" class="muted small"></span>
+            <button class="btn-ghost btn-sm rrFilterBtn active" data-f="all" onclick="setRRFilter('all')">All</button>
+            <button class="btn-ghost btn-sm rrFilterBtn" data-f="pending" onclick="setRRFilter('pending')" style="color:#c9a84c">Pending</button>
+            <button class="btn-ghost btn-sm rrFilterBtn" data-f="approved" onclick="setRRFilter('approved')" style="color:#6aaa6a">Approved</button>
+            <button class="btn-ghost btn-sm rrFilterBtn" data-f="denied" onclick="setRRFilter('denied')" style="color:#cc5a55">Denied</button>
+          </div>
+        </div>
+        <div class="panel-body" id="rrBody" style="min-height:80px">
+          <div class="muted" style="text-align:center;padding:40px 0">Loading rental requests...</div>
+        </div>
+      </div>
+    </section>
+
     <!-- SOPs -->
     <section id="sopsView" style="display:none;">
       <div class="panel">
@@ -1259,7 +1280,7 @@ function applyPermissions(){
     document.querySelectorAll('[data-perm-edit]').forEach(el=>el.style.display='');
     document.querySelectorAll('[data-perm-view-only]').forEach(el=>el.style.display='none');
     ['sideMgmtCal','sideBlacklist','sideSOPs','sideHub','sideHours','sideShiftPerf',
-     'sideLeader','sidePromo','sideVenues','sideRental','sideTemplates','sideAudit',
+     'sideLeader','sidePromo','sideVenues','sideRental','sideRentalReq','sideTemplates','sideAudit',
      'sideImportCSV','sideImport','sideExport','sideImportBackup','sideAddPerson'
     ].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
     return;
@@ -1275,7 +1296,7 @@ function applyPermissions(){
   const alwaysVisible=['sideMgmtCal','sideBlacklist','sideSOPs'];
   alwaysVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
 
-  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideRental','sideTemplates'];
+  const supVisible=['sideHub','sideHours','sideShiftPerf','sideLeader','sidePromo','sideVenues','sideRental','sideRentalReq','sideTemplates'];
   supVisible.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isSup?'':'none';});
 
   const dirVisible=['sideAudit'];
@@ -2858,6 +2879,7 @@ function hideAllViews(){
   document.getElementById('sopsView').style.display="none";
   document.getElementById('venueView').style.display="none";
   document.getElementById('rentalCalcView').style.display="none";
+  document.getElementById('rentalReqView').style.display="none";
 }
 
 function renderMgmtCal(){
@@ -4454,7 +4476,7 @@ document.getElementById('sideAddPerson')?.addEventListener('click',addPerson);
 // Update sidebar active state
 function updateSidebarActive(view){
   document.querySelectorAll('.sidebar .nav-item').forEach(el=>el.classList.remove('active'));
-  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',templates:'sideTemplates',blacklist:'sideBlacklist'};
+  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',rentalreq:'sideRentalReq',templates:'sideTemplates',blacklist:'sideBlacklist'};
   const id=map[view];
   if(id) document.getElementById(id)?.classList.add('active');
 }
@@ -5050,7 +5072,7 @@ document.addEventListener('click',(e)=>{
 
 function updateSidebarActive(view){
   document.querySelectorAll('.sidebar .nav-item').forEach(el=>el.classList.remove('active'));
-  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',templates:'sideTemplates',blacklist:'sideBlacklist'};
+  const map={hub:'sideHub',overview:'sideHours',mgmtcal:'sideMgmtCal',sops:'sideSOPs',audit:'sideAudit',shiftperf:'sideShiftPerf',leaderdash:'sideLeader',review:'sidePromo',venues:'sideVenues',rental:'sideRental',rentalreq:'sideRentalReq',templates:'sideTemplates',blacklist:'sideBlacklist'};
   const id=map[view];
   if(id) document.getElementById(id)?.classList.add('active');
 }
@@ -5062,6 +5084,186 @@ document.getElementById('signOutBtn')?.addEventListener('click', ()=>{
   auth.signOut().then(()=>{ location.reload(); });
 });
 
+
+
+
+// ═══════════════════════════════════════════
+// RENTAL REQUESTS PAGE
+// ═══════════════════════════════════════════
+let rrData = {};
+let rrFilter = 'all';
+const rrRef = db.ref('rentalRequests');
+
+// Live listener
+rrRef.on('value', snap => {
+  rrData = snap.val() || {};
+  if(state.ui?.view === 'rentalreq') renderRentalRequests();
+});
+
+function setRRFilter(f) {
+  rrFilter = f;
+  document.querySelectorAll('.rrFilterBtn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderRentalRequests();
+}
+
+function renderRentalRequests() {
+  hideAllViews();
+  document.getElementById('rentalReqView').style.display = '';
+  state.ui.view = 'rentalreq'; save();
+  if(typeof updateSidebarActive === 'function') updateSidebarActive('rentalreq');
+
+  const body = document.getElementById('rrBody');
+  let requests = Object.values(rrData).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const totalCount = requests.length;
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  document.getElementById('rrCountBadge').textContent = totalCount + ' total, ' + pendingCount + ' pending';
+
+  if(rrFilter !== 'all') requests = requests.filter(r => r.status === rrFilter);
+
+  if(!requests.length) {
+    body.innerHTML = '<div class="muted" style="text-align:center;padding:40px 0">No ' + (rrFilter==='all'?'':''+rrFilter+' ') + 'rental requests</div>';
+    return;
+  }
+
+  let html = '';
+  for(const r of requests) {
+    const statusColor = r.status==='approved' ? '#6aaa6a' : r.status==='denied' ? '#cc5a55' : '#c9a84c';
+    const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+    const dateStr = r.event?.date || '—';
+    const timeStr = r.event?.time || '—';
+    const dur = r.event?.duration ? r.event.duration + 'hr' : '—';
+
+    html += '<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px;border-left:3px solid '+statusColor+'">';
+
+    // Header row
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
+    html += '<div><div style="font-weight:700;font-size:15px">'+esc(r.venue||'Unknown')+'</div>';
+    html += '<div class="muted small">'+esc(r.contact?.name||'—')+' · '+esc(r.contact?.discord||'—')+' · '+esc(r.contact?.phone||'—')+'</div></div>';
+    html += '<div style="display:flex;gap:6px;align-items:center">';
+    html += '<span style="font-size:11px;font-weight:600;color:'+statusColor+';padding:4px 12px;border-radius:999px;border:1px solid '+statusColor+'30;background:'+statusColor+'18">'+statusLabel+'</span>';
+    if(r.status==='pending') {
+      html += '<button class="btn-ghost btn-sm" style="color:#6aaa6a;border-color:#6aaa6a40" onclick="setRRStatus(&quot;'+r.id+'&quot;,&quot;approved&quot;)">Approve</button>';
+      html += '<button class="btn-ghost btn-sm" style="color:#cc5a55;border-color:#cc5a5540" onclick="setRRStatus(&quot;'+r.id+'&quot;,&quot;denied&quot;)">Deny</button>';
+    } else {
+      html += '<button class="btn-ghost btn-sm" onclick="setRRStatus(&quot;'+r.id+'&quot;,&quot;pending&quot;)">Reset</button>';
+    }
+    html += '</div></div>';
+
+    // Detail grid
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px">';
+    html += rrChip('Date', dateStr);
+    html += rrChip('Time', timeStr + ' CST');
+    html += rrChip('Duration', dur);
+    html += rrChip('Visibility', (r.event?.visibility||'—'));
+    if(r.event?.theme) html += rrChip('Theme', r.event.theme);
+    if(r.event?.location) html += rrChip('Location', r.event.location);
+    if(r.event?.permits) html += rrChip('Permits', r.event.permits);
+    if(r.event?.insideOutside) html += rrChip('Setting', r.event.insideOutside);
+    html += '</div>';
+
+    // Editable staff
+    html += '<div style="margin-bottom:12px">';
+    html += '<div class="muted small" style="margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Staff</div>';
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    const staffLabels = {security:'Security',dancer:'Dancers',bartender:'Bartenders',dj:'DJ'};
+    for(const [role, count] of Object.entries(r.staff||{})) {
+      if(count > 0) {
+        html += '<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px">';
+        html += '<button class="btn-ghost" style="width:24px;height:24px;padding:0;font-size:14px;display:flex;align-items:center;justify-content:center" onclick="adjustRRStaff(&quot;'+r.id+'&quot;,&quot;'+role+'&quot;,-1)">−</button>';
+        html += '<span style="font-size:12px;font-weight:600;min-width:36px;text-align:center">'+count+' '+(staffLabels[role]||role)+'</span>';
+        html += '<button class="btn-ghost" style="width:24px;height:24px;padding:0;font-size:14px;display:flex;align-items:center;justify-content:center" onclick="adjustRRStaff(&quot;'+r.id+'&quot;,&quot;'+role+'&quot;,1)">+</button>';
+        html += '</div>';
+      }
+    }
+    html += '</div></div>';
+
+    // Vehicles
+    if(r.vehicles && r.vehicles.length) {
+      html += '<div style="margin-bottom:12px"><div class="muted small" style="margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Vehicles</div>';
+      html += '<div class="muted small">'+r.vehicles.map(v => v.charAt(0).toUpperCase()+v.slice(1)).join(', ')+'</div></div>';
+    }
+
+    // Guest list
+    if(r.event?.visibility==='private' && r.event?.guestList) {
+      html += '<div style="margin-bottom:12px"><div class="muted small" style="margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Guest list</div>';
+      html += '<div class="muted small" style="white-space:pre-wrap">'+esc(r.event.guestList)+'</div></div>';
+    }
+
+    // Anything else
+    if(r.event?.notes_customer || r.notes_text) {
+      // nothing — this was the old field
+    }
+
+    // Estimated total
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line);margin-top:8px">';
+    html += '<div class="muted small" style="font-weight:600">Estimated Total</div>';
+    html += '<div style="font-size:18px;font-weight:700;color:#e8c96e">$'+(r.estimatedTotal||0).toLocaleString()+'</div>';
+    html += '</div>';
+
+    // Notes section
+    html += '<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:8px">';
+    html += '<div class="muted small" style="margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Internal Notes</div>';
+    const notes = r.notes || [];
+    if(notes.length) {
+      for(const n of notes) {
+        html += '<div style="background:var(--bg);border-radius:6px;padding:8px 10px;margin-bottom:4px;font-size:12px">';
+        html += '<span class="muted" style="font-size:10px">'+esc(n.by||'—')+' · '+new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+new Date(n.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>';
+        html += '<div style="margin-top:2px">'+esc(n.text)+'</div></div>';
+      }
+    }
+    html += '<div style="display:flex;gap:6px;margin-top:6px">';
+    html += '<input class="input" id="rrNote-'+r.id+'" placeholder="Add a note..." style="flex:1;font-size:12px;padding:6px 10px">';
+    html += '<button class="btn-accent btn-sm" onclick="addRRNote(&quot;'+r.id+'&quot;)">Add</button>';
+    html += '</div></div>';
+
+    html += '</div>';
+  }
+  body.innerHTML = html;
+}
+
+function rrChip(label, value) {
+  return '<div style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.3px">'+esc(label)+'</div><div style="font-size:13px;font-weight:600;margin-top:2px">'+esc(value)+'</div></div>';
+}
+
+function setRRStatus(id, status) {
+  rrRef.child(id).update({ status });
+  if(typeof audit === 'function') audit('Set rental request ' + id + ' to ' + status);
+}
+
+function adjustRRStaff(id, role, delta) {
+  const req = rrData[id];
+  if(!req) return;
+  const current = (req.staff && req.staff[role]) || 0;
+  const newVal = Math.max(0, current + delta);
+  const staffPrices = {security:5000,dancer:5000,bartender:5000,dj:10000};
+  const updatedStaff = { ...req.staff, [role]: newVal };
+
+  // Recalculate total
+  let total = 0;
+  for(const [r,c] of Object.entries(updatedStaff)) total += c * (staffPrices[r]||0);
+  const vehiclePrices = {partybus:15000,helicopter:20000,limo:0};
+  for(const v of (req.vehicles||[])) total += vehiclePrices[v]||0;
+
+  rrRef.child(id).update({ staff: updatedStaff, estimatedTotal: total });
+  if(typeof audit === 'function') audit('Adjusted ' + role + ' to ' + newVal + ' on rental ' + id);
+}
+
+function addRRNote(id) {
+  const input = document.getElementById('rrNote-'+id);
+  const text = input.value.trim();
+  if(!text) return;
+  const req = rrData[id];
+  const notes = req?.notes || [];
+  const loginName = state.people?.find(p=>p.id===state.loggedInAs)?.character || 'Unknown';
+  notes.push({ text, by: loginName, ts: new Date().toISOString() });
+  rrRef.child(id).update({ notes });
+  input.value = '';
+  if(typeof audit === 'function') audit('Added note to rental ' + id);
+}
+
+// Click handler
+document.getElementById('sideRentalReq')?.addEventListener('click', renderRentalRequests);
 
 </script>
 <div style="text-align:center;padding:16px;font-size:11px;color:rgba(128,106,80,.3);border-top:1px solid #222;margin-top:8px">Created by JuggsMcNuggs. Built with her A.I. Levi.</div>

@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vanilla Venues — Where the City Comes Alive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060606;
+  --bg2: #0c0c0c;
+  --surface: #111111;
+  --surface2: #161616;
+  --line: #1c1c1c;
+  --line2: #252525;
+  --gold: #c9a84c;
+  --gold-hi: #e8c96e;
+  --gold-lo: #a08530;
+  --gold-dim: rgba(201,168,76,.08);
+  --gold-mid: rgba(201,168,76,.18);
+  --gold-glow: rgba(201,168,76,.04);
+  --text: #e8e4d8;
+  --text2: #b0a890;
+  --muted: #706850;
+  --faint: #4a4030;
+  --green: #6aaa6a;
+  --green-bg: rgba(106,170,106,.1);
+  --red: #cc5a55;
+  --blue: #6ca0d0;
+  --r: 10px;
+  --font-display: 'Cinzel', serif;
+  --font-sub: 'Cormorant Garamond', serif;
+  --font-body: 'Outfit', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ NAV ═══ */
+.topnav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(6,6,6,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 64px;
+}
+.nav-brand { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.nav-brand img { height: 40px; width: auto; opacity: .9; }
+.nav-brand span {
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  letter-spacing: 3px; color: var(--gold); text-transform: uppercase;
+}
+.nav-links { display: flex; gap: 4px; }
+.nav-link {
+  font-family: var(--font-display); font-size: 11px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); padding: 8px 18px; border-radius: 999px;
+  cursor: pointer; transition: all .2s; border: 1px solid transparent;
+  text-decoration: none;
+}
+.nav-link:hover { color: var(--gold-hi); }
+.nav-link.active { color: var(--gold-hi); background: var(--gold-dim); border-color: var(--gold-mid); }
+.nav-hamburger {
+  display: none; flex-direction: column; gap: 5px; cursor: pointer;
+  padding: 8px;
+}
+.nav-hamburger span { display: block; width: 22px; height: 1.5px; background: var(--gold); }
+
+/* ═══ PAGES ═══ */
+.page { display: none; padding-top: 64px; min-height: 100vh; }
+.page.active { display: block; }
+
+/* ═══ HOME ═══ */
+.hero {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: calc(100vh - 64px); padding: 60px 32px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(201,168,76,.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 80%, rgba(201,168,76,.03) 0%, transparent 50%),
+    var(--bg);
+}
+.hero-logo { width: 160px; height: auto; margin-bottom: 24px; opacity: .9; }
+.hero-title {
+  font-family: var(--font-display); font-size: 42px; font-weight: 700;
+  letter-spacing: 6px; color: var(--gold); text-transform: uppercase;
+  line-height: 1.2;
+}
+.hero-tagline {
+  font-family: var(--font-sub); font-size: 22px; font-weight: 300;
+  font-style: italic; color: var(--text2); margin-top: 12px;
+  letter-spacing: 1px;
+}
+.hero-divider {
+  width: 60px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 32px auto;
+}
+.hero-desc {
+  max-width: 600px; font-size: 15px; line-height: 1.8; color: var(--text2);
+  font-weight: 300;
+}
+.hero-cta {
+  margin-top: 40px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+}
+.btn-gold {
+  font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  padding: 14px 36px; border-radius: var(--r);
+  background: var(--gold-mid); border: 1px solid rgba(201,168,76,.35);
+  color: var(--gold-hi); cursor: pointer; transition: all .2s;
+  text-decoration: none;
+}
+.btn-gold:hover { background: rgba(201,168,76,.28); border-color: var(--gold); }
+.btn-ghost {
+  font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  padding: 14px 36px; border-radius: var(--r);
+  background: transparent; border: 1px solid var(--line2);
+  color: var(--muted); cursor: pointer; transition: all .2s;
+  text-decoration: none;
+}
+.btn-ghost:hover { border-color: var(--gold-mid); color: var(--gold); }
+
+/* ═══ SECTION SHARED ═══ */
+.section-wrap { max-width: 960px; margin: 0 auto; padding: 60px 32px; }
+.section-title {
+  font-family: var(--font-display); font-size: 28px; font-weight: 600;
+  letter-spacing: 4px; text-transform: uppercase; color: var(--gold);
+  text-align: center; margin-bottom: 8px;
+}
+.section-subtitle {
+  font-family: var(--font-sub); font-size: 17px; font-weight: 300;
+  font-style: italic; color: var(--muted); text-align: center;
+  margin-bottom: 40px;
+}
+
+/* ═══ VENUES GRID ═══ */
+.venue-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px; margin-bottom: 20px;
+}
+.venue-card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 22px; cursor: pointer;
+  transition: all .25s; display: flex; flex-direction: column;
+}
+.venue-card:hover { border-color: rgba(201,168,76,.3); transform: translateY(-2px); }
+.venue-card-name {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  letter-spacing: 1.5px; color: var(--text); margin-bottom: 8px;
+}
+.venue-card-desc {
+  font-size: 13px; color: var(--muted); line-height: 1.5;
+  flex: 1; margin-bottom: 14px;
+}
+.venue-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.venue-tag {
+  font-size: 10px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+  letter-spacing: .5px;
+}
+.venue-tag-fee { background: var(--gold-dim); color: var(--gold-hi); border: 1px solid var(--gold-mid); }
+.venue-tag-free { background: var(--green-bg); color: var(--green); border: 1px solid rgba(106,170,106,.25); }
+.venue-book-btn {
+  font-family: var(--font-display); font-size: 9px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 7px 16px; border-radius: 999px;
+  background: var(--gold-dim); border: 1px solid rgba(201,168,76,.25);
+  color: var(--gold-hi); cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.venue-book-btn:hover { background: var(--gold-mid); }
+.custom-event-card {
+  grid-column: 1 / -1;
+  background: var(--gold-glow); border: 1px dashed rgba(201,168,76,.3);
+  border-radius: var(--r); padding: 28px; text-align: center;
+  cursor: pointer; transition: all .25s;
+}
+.custom-event-card:hover { border-color: var(--gold); background: var(--gold-dim); }
+.custom-event-title {
+  font-family: var(--font-display); font-size: 18px; font-weight: 600;
+  letter-spacing: 2px; color: var(--gold-hi); margin-bottom: 6px;
+}
+.custom-event-desc { font-size: 13px; color: var(--muted); }
+
+/* ═══ VENUE DETAIL / BOOKING ═══ */
+.venue-detail { display: none; }
+.venue-detail.active { display: block; }
+.vd-back {
+  font-family: var(--font-display); font-size: 10px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--gold); cursor: pointer; padding: 8px 0; margin-bottom: 16px;
+  display: inline-block;
+}
+.vd-back:hover { color: var(--gold-hi); }
+.vd-header {
+  border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px;
+}
+.vd-name {
+  font-family: var(--font-display); font-size: 28px; font-weight: 700;
+  letter-spacing: 3px; color: var(--text); text-transform: uppercase;
+}
+.vd-tagline {
+  font-family: var(--font-sub); font-size: 16px; font-weight: 300;
+  font-style: italic; color: var(--muted); margin-top: 6px;
+}
+.vd-chips {
+  display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+}
+.vd-chip {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 18px; text-align: center; min-width: 100px;
+}
+.vd-chip-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 500; }
+.vd-chip-val { font-size: 16px; font-weight: 700; color: var(--gold-hi); margin-top: 3px; }
+
+/* ═══ BOOKING FORM ═══ */
+.form-section-label {
+  font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+  padding: 20px 0 10px; border-top: 1px solid var(--line); margin-top: 20px;
+}
+.form-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid rgba(28,28,28,.6);
+}
+.form-row:last-child { border-bottom: none; }
+.form-label { font-size: 14px; font-weight: 500; color: var(--text); }
+.form-hint { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.form-input {
+  background: var(--surface); border: 1px solid var(--line2);
+  border-radius: 8px; padding: 10px 14px; color: var(--text);
+  font-family: var(--font-body); font-size: 13px; width: 220px;
+  outline: none; transition: border-color .2s;
+}
+.form-input:focus { border-color: rgba(201,168,76,.4); }
+.form-input::placeholder { color: var(--faint); }
+.form-input.wide { width: 100%; }
+.form-textarea {
+  background: var(--surface); border: 1px solid var(--line2);
+  border-radius: 8px; padding: 10px 14px; color: var(--text);
+  font-family: var(--font-body); font-size: 13px; width: 100%;
+  min-height: 70px; resize: vertical; outline: none;
+  transition: border-color .2s;
+}
+.form-textarea:focus { border-color: rgba(201,168,76,.4); }
+.form-textarea::placeholder { color: var(--faint); }
+.stepper {
+  display: flex; border: 1px solid var(--line2); border-radius: 8px; overflow: hidden;
+}
+.step-btn {
+  width: 36px; height: 36px; background: var(--surface); color: var(--gold);
+  font-size: 18px; font-weight: 700; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; border: none; font-family: var(--font-body);
+  transition: background .15s;
+}
+.step-btn:hover { background: var(--gold-dim); }
+.step-val {
+  width: 42px; text-align: center; font-size: 14px; font-weight: 600;
+  color: var(--text); background: var(--bg2); line-height: 36px;
+  border-left: 1px solid var(--line2); border-right: 1px solid var(--line2);
+}
+.pill-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--line2); background: var(--surface); color: var(--muted);
+  cursor: pointer; transition: all .15s;
+}
+.pill:hover { border-color: var(--gold-mid); color: var(--gold); }
+.pill.on { border-color: rgba(201,168,76,.4); background: var(--gold-dim); color: var(--gold-hi); }
+
+.summary-bar {
+  background: var(--surface2); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 20px 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 28px; flex-wrap: wrap; gap: 16px;
+}
+.summary-total-label {
+  font-family: var(--font-display); font-size: 10px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+}
+.summary-total { font-size: 28px; font-weight: 700; color: var(--gold-hi); }
+.summary-note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.submit-btn {
+  font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 14px 32px; border-radius: var(--r);
+  background: var(--gold-mid); border: 1px solid rgba(201,168,76,.4);
+  color: var(--gold-hi); cursor: pointer; transition: all .2s;
+}
+.submit-btn:hover { background: rgba(201,168,76,.3); }
+.submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+.booking-note {
+  text-align: center; font-size: 12px; color: var(--muted);
+  margin-top: 16px; line-height: 1.5;
+}
+.hidden { display: none !important; }
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  background: var(--surface2); border: 1px solid var(--gold-mid);
+  color: var(--gold-hi); padding: 14px 28px; border-radius: var(--r);
+  font-size: 14px; font-weight: 500; z-index: 200;
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* ═══ WALLPAPERS ═══ */
+.coming-soon {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: calc(100vh - 64px); text-align: center; padding: 60px 32px;
+}
+.coming-soon-title {
+  font-family: var(--font-display); font-size: 32px; font-weight: 600;
+  letter-spacing: 5px; color: var(--gold); text-transform: uppercase;
+}
+.coming-soon-sub {
+  font-family: var(--font-sub); font-size: 18px; font-weight: 300;
+  font-style: italic; color: var(--muted); margin-top: 12px;
+}
+
+/* ═══ CAREERS ═══ */
+.role-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px; margin-bottom: 32px;
+}
+.role-card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 24px; transition: border-color .2s;
+}
+.role-card:hover { border-color: var(--line2); }
+.role-card-title {
+  font-family: var(--font-display); font-size: 15px; font-weight: 600;
+  letter-spacing: 1.5px; color: var(--gold-hi); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.role-card-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.careers-cta { text-align: center; margin-top: 16px; }
+
+/* ═══ CONTACT ═══ */
+.contact-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: calc(100vh - 64px); text-align: center; padding: 60px 32px;
+}
+.contact-card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 40px 48px; max-width: 480px;
+}
+.contact-card-title {
+  font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  letter-spacing: 3px; color: var(--gold); text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.contact-card-text { font-size: 14px; color: var(--text2); line-height: 1.7; margin-bottom: 8px; }
+.contact-highlight { color: var(--gold-hi); font-weight: 600; }
+
+/* ═══ FOOTER ═══ */
+.site-footer {
+  text-align: center; padding: 28px 32px; border-top: 1px solid var(--line);
+  font-size: 11px; color: rgba(201,168,76,.25);
+}
+.site-footer span { color: rgba(201,168,76,.5); }
+
+/* ═══ MOBILE ═══ */
+@media (max-width: 680px) {
+  .topnav { padding: 0 16px; }
+  .nav-links { display: none; position: fixed; top: 64px; left: 0; right: 0;
+    background: rgba(6,6,6,.97); flex-direction: column; padding: 16px;
+    border-bottom: 1px solid var(--line); gap: 4px;
+  }
+  .nav-links.open { display: flex; }
+  .nav-hamburger { display: flex; }
+  .hero-title { font-size: 28px; letter-spacing: 3px; }
+  .hero-tagline { font-size: 18px; }
+  .section-wrap { padding: 40px 16px; }
+  .form-input { width: 100%; }
+  .form-row { flex-direction: column; align-items: flex-start; }
+  .summary-bar { flex-direction: column; text-align: center; }
+  .vd-name { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAVIGATION ═══ -->
+<nav class="topnav">
+  <div class="nav-brand" onclick="showPage('home')">
+    <img src="vv_logo.png" alt="VV">
+    <span>Vanilla Venues</span>
+  </div>
+  <div class="nav-hamburger" onclick="toggleMobileNav()">
+    <span></span><span></span><span></span>
+  </div>
+  <div class="nav-links" id="navLinks">
+    <a class="nav-link active" data-page="home" onclick="showPage('home')">Home</a>
+    <a class="nav-link" data-page="venues" onclick="showPage('venues')">Venues</a>
+    <a class="nav-link" data-page="wallpapers" onclick="showPage('wallpapers')">Wallpapers</a>
+    <a class="nav-link" data-page="careers" onclick="showPage('careers')">Careers</a>
+    <a class="nav-link" data-page="contact" onclick="showPage('contact')">Contact</a>
+  </div>
+</nav>
+
+<!-- ═══ HOME ═══ -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <img src="vv_logo.png" alt="Vanilla Venues" class="hero-logo">
+    <h1 class="hero-title">Vanilla Venues</h1>
+    <p class="hero-tagline">Where the city comes alive.</p>
+    <div class="hero-divider"></div>
+    <p class="hero-desc">
+      Vanilla Venues is the premier entertainment company in the city. From intimate lounges
+      to high-energy nightclubs, we operate ten unique locations across San Andreas — each with
+      its own atmosphere, its own character, and one shared standard of excellence. Whether you're
+      here for a night out or looking to host something unforgettable, you're in the right place.
+    </p>
+    <div class="hero-cta">
+      <a class="btn-gold" onclick="showPage('venues')">Explore Venues</a>
+      <a class="btn-ghost" onclick="showPage('careers')">Join Our Team</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VENUES ═══ -->
+<div class="page" id="page-venues">
+  <div class="section-wrap">
+    <h2 class="section-title">Our Venues</h2>
+    <p class="section-subtitle">Ten locations. One standard.</p>
+    <div class="venue-grid" id="venueGrid"></div>
+  </div>
+  <div class="section-wrap venue-detail" id="venueDetail">
+    <div class="vd-back" onclick="closeVenueDetail()">← Back to All Venues</div>
+    <div class="vd-header">
+      <h2 class="vd-name" id="vdName"></h2>
+      <p class="vd-tagline" id="vdTagline"></p>
+      <div class="vd-chips" id="vdChips"></div>
+    </div>
+
+    <div class="form-section-label">Your Information</div>
+    <div class="form-row">
+      <div><div class="form-label">Character name</div></div>
+      <input class="form-input" id="bkName" placeholder="First Last">
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">Discord</div></div>
+      <input class="form-input" id="bkDiscord" placeholder="username">
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">In-city phone</div></div>
+      <input class="form-input" id="bkPhone" placeholder="000-000-0000">
+    </div>
+
+    <!-- Custom event only fields -->
+    <div id="customOnlyFields" class="hidden">
+      <div class="form-section-label">Event Location</div>
+      <div class="form-row">
+        <div><div class="form-label">Where is this event?</div></div>
+        <input class="form-input" id="bkLocation" placeholder="Location name / address">
+      </div>
+      <div class="form-row">
+        <div><div class="form-label">Do you have event permits?</div></div>
+        <div class="pill-group">
+          <div class="pill" data-field="permits" data-val="yes" onclick="togglePill(this,'permits')">Yes</div>
+          <div class="pill" data-field="permits" data-val="no" onclick="togglePill(this,'permits')">No</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><div class="form-label">Inside or outside?</div></div>
+        <div class="pill-group">
+          <div class="pill" data-field="inout" data-val="inside" onclick="togglePill(this,'inout')">Inside</div>
+          <div class="pill" data-field="inout" data-val="outside" onclick="togglePill(this,'inout')">Outside</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section-label">Event Details</div>
+    <div class="form-row">
+      <div><div class="form-label">Public or private?</div></div>
+      <div class="pill-group">
+        <div class="pill" data-field="visibility" data-val="public" onclick="togglePill(this,'visibility')">Public</div>
+        <div class="pill" data-field="visibility" data-val="private" onclick="togglePill(this,'visibility')">Private</div>
+      </div>
+    </div>
+    <div class="form-row hidden" id="guestListRow">
+      <div style="width:100%">
+        <div class="form-label" style="margin-bottom:6px">Guest list</div>
+        <textarea class="form-textarea" id="bkGuestList" placeholder="List names or groups who should be admitted"></textarea>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">Theme or costumes</div><div class="form-hint">Optional</div></div>
+      <input class="form-input" id="bkTheme" placeholder="e.g. 80s night, formal, etc.">
+    </div>
+
+    <div class="form-section-label">Staff & Vehicles</div>
+    <div id="staffRows"></div>
+    <div class="form-row">
+      <div><div class="form-label">Vehicles</div></div>
+      <div class="pill-group" id="vehiclePills">
+        <div class="pill" data-field="vehicle" data-val="partybus" onclick="toggleMultiPill(this)">Party bus · $15k</div>
+        <div class="pill" data-field="vehicle" data-val="helicopter" onclick="toggleMultiPill(this)">Helicopter · $20k</div>
+        <div class="pill" data-field="vehicle" data-val="limo" onclick="toggleMultiPill(this)">Limousine</div>
+      </div>
+    </div>
+
+    <div class="form-section-label">Date & Time</div>
+    <div class="form-row">
+      <div><div class="form-label">Date</div></div>
+      <input type="date" class="form-input" id="bkDate">
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">Time</div><div class="form-hint">Central Standard Time</div></div>
+      <input type="time" class="form-input" id="bkTime">
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">Duration</div><div class="form-hint">Max 2 hours</div></div>
+      <div class="pill-group">
+        <div class="pill" data-field="duration" data-val="1" onclick="togglePill(this,'duration')">1 hr</div>
+        <div class="pill" data-field="duration" data-val="1.5" onclick="togglePill(this,'duration')">1.5 hr</div>
+        <div class="pill" data-field="duration" data-val="2" onclick="togglePill(this,'duration')">2 hr</div>
+      </div>
+    </div>
+
+    <div class="form-section-label">Anything Else?</div>
+    <div style="padding: 8px 0 0;">
+      <textarea class="form-textarea" id="bkNotes" placeholder="Special requests, additional info, etc."></textarea>
+    </div>
+
+    <div class="summary-bar">
+      <div>
+        <div class="summary-total-label">Estimated Total · Due Day of Event</div>
+        <div class="summary-total" id="bkTotal">$0</div>
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="submitBooking()">Submit Request</button>
+    </div>
+    <p class="booking-note">A supervisor will contact you via Discord to confirm your booking.</p>
+  </div>
+</div>
+
+<!-- ═══ WALLPAPERS ═══ -->
+<div class="page" id="page-wallpapers">
+  <div class="coming-soon">
+    <h2 class="coming-soon-title">Wallpapers</h2>
+    <p class="coming-soon-sub">Coming soon.</p>
+  </div>
+</div>
+
+<!-- ═══ CAREERS ═══ -->
+<div class="page" id="page-careers">
+  <div class="section-wrap">
+    <h2 class="section-title">Join Our Team</h2>
+    <p class="section-subtitle">Find your role. Make your mark.</p>
+    <div class="role-grid">
+      <div class="role-card">
+        <div class="role-card-title">Security</div>
+        <div class="role-card-desc">
+          The backbone of every opening. Check IDs, maintain the door, roam the venue, protect
+          staff and patrons. You're the first face people see and the last line if things go sideways.
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-card-title">Dancer</div>
+        <div class="role-card-desc">
+          The core of what makes VV special. Perform on stage, interact with patrons,
+          offer private dances at the Vanilla Unicorn. Courtesy and professionalism at all times.
+          Must cross-train in a secondary role.
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-card-title">Bartender</div>
+        <div class="role-card-desc">
+          Keep the drinks flowing and the conversation going. Take orders, learn recipes,
+          work the bar with personality. Step out from behind it when things are slow to
+          offer drinks around the venue.
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-card-title">DJ</div>
+        <div class="role-card-desc">
+          Set the mood for the entire venue. Run the sound system, read the room, take
+          requests, and act as the announcer when the energy needs a push. The playlist
+          is yours — keep it appropriate for the location.
+        </div>
+      </div>
+    </div>
+    <div class="careers-cta">
+      <a class="btn-gold" href="https://highliferoleplay.net/jobs/vanilla/apply" target="_blank" rel="noopener">Apply Now</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONTACT ═══ -->
+<div class="page" id="page-contact">
+  <div class="contact-wrap">
+    <div class="contact-card">
+      <h2 class="contact-card-title">Get in Touch</h2>
+      <p class="contact-card-text">
+        For bookings, questions, or anything else — reach out to
+        <span class="contact-highlight">management on Discord</span>.
+      </p>
+      <p class="contact-card-text">
+        Interested in renting a venue? Head to our
+        <a style="color:var(--gold-hi);cursor:pointer;text-decoration:underline;" onclick="showPage('venues')">Venues</a>
+        page to submit a booking request.
+      </p>
+      <p class="contact-card-text">
+        Want to work with us? Check out our
+        <a style="color:var(--gold-hi);cursor:pointer;text-decoration:underline;" onclick="showPage('careers')">Careers</a>
+        page and apply.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="site-footer">
+  Created by <span>JuggsMcNuggs</span>. Built with her A.I. <span>Levi</span>.
+</footer>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ FIREBASE ═══ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDjIgEXGghQ8tYHOTOw7gjXmCiXYex30pQ",
+  authDomain: "vv-database-8ac24.firebaseapp.com",
+  databaseURL: "https://vv-database-8ac24-default-rtdb.firebaseio.com",
+  projectId: "vv-database-8ac24",
+  storageBucket: "vv-database-8ac24.firebasestorage.app",
+  messagingSenderId: "1059299536987",
+  appId: "1:1059299536987:web:8b04a0897af4e6618bcf7e"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const rentalRef = db.ref('rentalRequests');
+
+/* ═══ VENUE DATA ═══ */
+const VENUES = [
+  { id:'vu', name:'Vanilla Unicorn', desc:'The flagship. Live entertainment, private dances, full bar.', fee:500,
+    staff:{security:{min:6,max:12},dancer:{min:0,max:10},bartender:{min:0,max:2},dj:{min:1,max:1}} },
+  { id:'paradise', name:'Paradise Lounge', desc:'Upscale lounge with a back room bar and refined atmosphere.', fee:500,
+    staff:{security:{min:5,max:12},dancer:{min:0,max:8},bartender:{min:0,max:3},dj:{min:1,max:1}} },
+  { id:'bahama', name:'Bahama Mamas', desc:'High-energy nightclub. Big dance floor, bigger nights.', fee:500,
+    staff:{security:{min:5,max:10},dancer:{min:0,max:2},bartender:{min:0,max:2},dj:{min:1,max:1}} },
+  { id:'maisonette', name:'Maisonette 10', desc:'Sleek and stylish downtown nightlife.', fee:500,
+    staff:{security:{min:4,max:10},dancer:{min:0,max:2},bartender:{min:0,max:1},dj:{min:1,max:1}} },
+  { id:'tequila', name:'Tequi-la-la', desc:'Rock bar energy. Loud music, strong drinks, good crowd.', fee:500,
+    staff:{security:{min:4,max:8},dancer:{min:0,max:2},bartender:{min:0,max:1},dj:{min:1,max:1}} },
+  { id:'splitsides', name:'Split Sides Comedy Club', desc:'Live comedy and special events. Laughter guaranteed.', fee:500,
+    staff:{security:{min:4,max:10},dancer:{min:0,max:0},bartender:{min:0,max:1},dj:{min:1,max:1}} },
+  { id:'wiwang', name:'Wiwang Sky Bar', desc:'Rooftop pool, cocktails, skyline views. Bronze supporter entry.', fee:0,
+    staff:{security:{min:4,max:10},dancer:{min:0,max:2},bartender:{min:0,max:2},dj:{min:1,max:1}} },
+  { id:'yellowjack', name:'Yellow Jack', desc:'Desert dive bar. No pretense, just good company.', fee:0,
+    staff:{security:{min:3,max:8},dancer:{min:0,max:0},bartender:{min:0,max:1},dj:{min:0,max:1}} },
+  { id:'handlebar', name:'The Handlebar', desc:'Neighborhood bar with character and a loyal crowd.', fee:0,
+    staff:{security:{min:4,max:10},dancer:{min:0,max:0},bartender:{min:0,max:2},dj:{min:0,max:1}} },
+  { id:'blackwoods', name:'Black Woods Saloon', desc:'Country saloon deep in the sticks. Rustic and real.', fee:0,
+    staff:{security:{min:4,max:8},dancer:{min:0,max:0},bartender:{min:0,max:1},dj:{min:0,max:1}} },
+];
+
+const STAFF_PRICES = { security: 5000, dancer: 5000, bartender: 5000, dj: 10000 };
+const STAFF_LABELS = { security:'Security', dancer:'Dancers', bartender:'Bartenders', dj:'DJ' };
+const VEHICLE_PRICES = { partybus: 15000, helicopter: 20000, limo: 0 };
+
+let currentVenue = null;
+let bookingState = { staff:{}, vehicles:[], pills:{} };
+
+/* ═══ NAV ═══ */
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.page===page));
+  document.getElementById('navLinks').classList.remove('open');
+  if(page==='venues') { closeVenueDetail(); renderVenueGrid(); }
+  window.scrollTo(0,0);
+}
+function toggleMobileNav() {
+  document.getElementById('navLinks').classList.toggle('open');
+}
+
+/* ═══ VENUE GRID ═══ */
+function renderVenueGrid() {
+  const g = document.getElementById('venueGrid');
+  let html = '';
+  for(const v of VENUES) {
+    const feeTag = v.fee > 0
+      ? `<div class="venue-tag venue-tag-fee">$${v.fee} entry</div>`
+      : `<div class="venue-tag venue-tag-free">Free entry</div>`;
+    html += `<div class="venue-card" onclick="openVenue('${v.id}')">
+      <div class="venue-card-name">${v.name}</div>
+      <div class="venue-card-desc">${v.desc}</div>
+      <div class="venue-card-bottom">
+        ${feeTag}
+        <div class="venue-book-btn">Book Rental →</div>
+      </div>
+    </div>`;
+  }
+  html += `<div class="custom-event-card" onclick="openVenue('custom')">
+    <div class="custom-event-title">+ &nbsp;Custom Event</div>
+    <div class="custom-event-desc">Your location, your vision. Bring our staff and vehicles to any permitted venue in the city.</div>
+  </div>`;
+  g.innerHTML = html;
+}
+
+/* ═══ VENUE DETAIL ═══ */
+function openVenue(id) {
+  const grid = document.getElementById('venueGrid');
+  const detail = document.getElementById('venueDetail');
+  const customFields = document.getElementById('customOnlyFields');
+
+  grid.parentElement.querySelector('.section-title').style.display = 'none';
+  grid.parentElement.querySelector('.section-subtitle').style.display = 'none';
+  grid.style.display = 'none';
+  detail.classList.add('active');
+
+  // Reset form
+  bookingState = { staff:{}, vehicles:[], pills:{} };
+  document.querySelectorAll('.pill.on').forEach(p => p.classList.remove('on'));
+  document.getElementById('bkName').value = '';
+  document.getElementById('bkDiscord').value = '';
+  document.getElementById('bkPhone').value = '';
+  document.getElementById('bkTheme').value = '';
+  document.getElementById('bkDate').value = '';
+  document.getElementById('bkTime').value = '';
+  document.getElementById('bkNotes').value = '';
+  document.getElementById('bkGuestList').value = '';
+  document.getElementById('guestListRow').classList.add('hidden');
+
+  if(id === 'custom') {
+    currentVenue = null;
+    document.getElementById('vdName').textContent = 'Custom Event';
+    document.getElementById('vdTagline').textContent = 'Bring our team to your venue.';
+    document.getElementById('vdChips').innerHTML = '';
+    customFields.classList.remove('hidden');
+    renderStaffRows({ security:{min:1,max:20}, dancer:{min:0,max:10}, bartender:{min:0,max:5}, dj:{min:0,max:2} });
+  } else {
+    const v = VENUES.find(x => x.id === id);
+    currentVenue = v;
+    document.getElementById('vdName').textContent = v.name;
+    document.getElementById('vdTagline').textContent = v.desc;
+    customFields.classList.add('hidden');
+    const feeText = v.fee > 0 ? '$'+v.fee.toLocaleString() : 'Free';
+    const maxStaff = Object.values(v.staff).reduce((a,s) => a+s.max, 0);
+    document.getElementById('vdChips').innerHTML = `
+      <div class="vd-chip"><div class="vd-chip-label">Entry Fee</div><div class="vd-chip-val">${feeText}</div></div>
+      <div class="vd-chip"><div class="vd-chip-label">Max Staff</div><div class="vd-chip-val">${maxStaff}</div></div>
+    `;
+    renderStaffRows(v.staff);
+  }
+  updateTotal();
+  window.scrollTo(0,0);
+}
+
+function closeVenueDetail() {
+  const grid = document.getElementById('venueGrid');
+  const detail = document.getElementById('venueDetail');
+  const wrap = grid.parentElement;
+  wrap.querySelector('.section-title').style.display = '';
+  wrap.querySelector('.section-subtitle').style.display = '';
+  grid.style.display = '';
+  detail.classList.remove('active');
+  currentVenue = null;
+}
+
+/* ═══ STAFF STEPPERS ═══ */
+function renderStaffRows(staffConfig) {
+  const container = document.getElementById('staffRows');
+  let html = '';
+  for(const [role, cfg] of Object.entries(staffConfig)) {
+    if(cfg.max === 0) continue;
+    const price = STAFF_PRICES[role] || 0;
+    const priceLabel = price >= 10000 ? '$'+(price/1000)+'k' : '$'+(price/1000)+'k';
+    const startVal = cfg.min || 0;
+    bookingState.staff[role] = startVal;
+    html += `<div class="form-row">
+      <div><div class="form-label">${STAFF_LABELS[role]||role}</div>
+      <div class="form-hint">${priceLabel} each${cfg.min ? ' · Min '+cfg.min : ''}</div></div>
+      <div class="stepper">
+        <div class="step-btn" onclick="adjustStaff('${role}',-1,${cfg.min||0},${cfg.max})">−</div>
+        <div class="step-val" id="staff-${role}">${startVal}</div>
+        <div class="step-btn" onclick="adjustStaff('${role}',1,${cfg.min||0},${cfg.max})">+</div>
+      </div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function adjustStaff(role, delta, min, max) {
+  const el = document.getElementById('staff-'+role);
+  let val = (bookingState.staff[role]||0) + delta;
+  val = Math.max(min, Math.min(max, val));
+  bookingState.staff[role] = val;
+  el.textContent = val;
+  updateTotal();
+}
+
+/* ═══ PILLS ═══ */
+function togglePill(el, field) {
+  const val = el.dataset.val;
+  el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  bookingState.pills[field] = val;
+  if(field === 'visibility') {
+    document.getElementById('guestListRow').classList.toggle('hidden', val !== 'private');
+  }
+  updateTotal();
+}
+
+function toggleMultiPill(el) {
+  el.classList.toggle('on');
+  bookingState.vehicles = [];
+  document.querySelectorAll('#vehiclePills .pill.on').forEach(p => {
+    bookingState.vehicles.push(p.dataset.val);
+  });
+  updateTotal();
+}
+
+/* ═══ TOTAL ═══ */
+function updateTotal() {
+  let total = 0;
+  for(const [role, count] of Object.entries(bookingState.staff)) {
+    total += count * (STAFF_PRICES[role]||0);
+  }
+  for(const v of bookingState.vehicles) {
+    total += VEHICLE_PRICES[v] || 0;
+  }
+  document.getElementById('bkTotal').textContent = '$' + total.toLocaleString();
+}
+
+/* ═══ SUBMIT ═══ */
+function submitBooking() {
+  const name = document.getElementById('bkName').value.trim();
+  const discord = document.getElementById('bkDiscord').value.trim();
+  const phone = document.getElementById('bkPhone').value.trim();
+  if(!name || !discord || !phone) {
+    showToast('Please fill in your name, Discord, and phone number.');
+    return;
+  }
+  const date = document.getElementById('bkDate').value;
+  const time = document.getElementById('bkTime').value;
+  if(!date || !time) {
+    showToast('Please select a date and time.');
+    return;
+  }
+  if(!bookingState.pills.duration) {
+    showToast('Please select a duration.');
+    return;
+  }
+
+  const request = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    timestamp: new Date().toISOString(),
+    status: 'pending',
+    venue: currentVenue ? currentVenue.name : 'Custom Event',
+    venueId: currentVenue ? currentVenue.id : 'custom',
+    contact: { name, discord, phone },
+    event: {
+      visibility: bookingState.pills.visibility || 'public',
+      guestList: document.getElementById('bkGuestList').value.trim() || '',
+      theme: document.getElementById('bkTheme').value.trim() || '',
+      duration: parseFloat(bookingState.pills.duration) || 2,
+      date, time,
+    },
+    staff: { ...bookingState.staff },
+    vehicles: [...bookingState.vehicles],
+    estimatedTotal: parseInt(document.getElementById('bkTotal').textContent.replace(/[$,]/g,'')) || 0,
+    notes: [],
+  };
+
+  // Custom event extras
+  if(!currentVenue) {
+    request.event.location = document.getElementById('bkLocation').value.trim();
+    request.event.permits = bookingState.pills.permits || '';
+    request.event.insideOutside = bookingState.pills.inout || '';
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  rentalRef.child(request.id).set(request)
+    .then(() => {
+      showToast('Booking request submitted! A supervisor will contact you on Discord.');
+      btn.textContent = 'Submitted ✓';
+      setTimeout(() => { closeVenueDetail(); renderVenueGrid(); btn.disabled = false; btn.textContent = 'Submit Request'; }, 3000);
+    })
+    .catch(err => {
+      console.error('Submit error:', err);
+      showToast('Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Submit Request';
+    });
+}
+
+/* ═══ TOAST ═══ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+/* ═══ INIT ═══ */
+renderVenueGrid();
+</script>
+</body>
+</html>
