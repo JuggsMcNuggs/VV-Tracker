@@ -5155,6 +5155,7 @@ function renderRentalRequests() {
     } else {
       html += '<button class="btn-ghost btn-sm" onclick="setRRStatus(&quot;'+r.id+'&quot;,&quot;pending&quot;)">Reset</button>';
     }
+    html += '<button class="btn-ghost btn-sm" onclick="openRREditModal(&quot;'+r.id+'&quot;)">Edit</button>';
     html += '<button class="btn-ghost btn-sm" style="color:#cc5a55;border-color:#cc5a5540" onclick="deleteRR(&quot;'+r.id+'&quot;)">Delete</button>';
     html += '</div></div>';
 
@@ -5257,6 +5258,59 @@ function deleteRR(id) {
   if(!confirm('Delete this rental request? This cannot be undone.')) return;
   rrRef.child(id).remove();
   if(typeof audit === 'function') audit('Deleted rental request ' + id);
+}
+
+function openRREditModal(id) {
+  const r = rrData[id]; if(!r) return;
+  const e = r.event||{};
+  openModal('Edit Rental Request', `
+    <div class="row"><div><div class="muted small">Venue / Event Name</div><input id="rre_venue" value="${escapeHtml(r.venue||'')}"></div></div>
+    <div class="divider"></div>
+    <div class="muted small" style="font-weight:700;margin-bottom:8px">Contact</div>
+    <div class="row">
+      <div><div class="muted small">Name</div><input id="rre_name" value="${escapeHtml(r.contact?.name||'')}"></div>
+      <div><div class="muted small">Discord</div><input id="rre_discord" value="${escapeHtml(r.contact?.discord||'')}"></div>
+      <div><div class="muted small">Phone</div><input id="rre_phone" value="${escapeHtml(r.contact?.phone||'')}"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="muted small" style="font-weight:700;margin-bottom:8px">Event Details</div>
+    <div class="row">
+      <div><div class="muted small">Date</div><input type="date" id="rre_date" value="${escapeHtml(e.date||'')}"></div>
+      <div><div class="muted small">Time</div><input type="time" id="rre_time" value="${escapeHtml(e.time||'')}"></div>
+      <div><div class="muted small">Duration (hr)</div><input type="number" id="rre_dur" step="0.5" min="0.5" value="${escapeHtml(String(e.duration||''))}"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><div class="muted small">Visibility</div><select id="rre_vis"><option value="public" ${e.visibility==='public'?'selected':''}>Public</option><option value="private" ${e.visibility==='private'?'selected':''}>Private</option></select></div>
+      <div><div class="muted small">Theme</div><input id="rre_theme" value="${escapeHtml(e.theme||'')}"></div>
+      <div><div class="muted small">Location</div><input id="rre_location" value="${escapeHtml(e.location||'')}"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><div class="muted small">Guest List</div><textarea id="rre_guestlist" rows="3" style="width:100%;resize:vertical">${escapeHtml(e.guestList||'')}</textarea></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-accent" id="rre_save">Save</button></div>
+  `);
+  document.getElementById('rre_save').addEventListener('click', () => {
+    rrRef.child(id).update({
+      venue: document.getElementById('rre_venue').value.trim(),
+      contact: {
+        name: document.getElementById('rre_name').value.trim(),
+        discord: document.getElementById('rre_discord').value.trim(),
+        phone: document.getElementById('rre_phone').value.trim(),
+      },
+      event: {
+        ...e,
+        date: document.getElementById('rre_date').value,
+        time: document.getElementById('rre_time').value,
+        duration: parseFloat(document.getElementById('rre_dur').value)||e.duration,
+        visibility: document.getElementById('rre_vis').value,
+        theme: document.getElementById('rre_theme').value.trim(),
+        location: document.getElementById('rre_location').value.trim(),
+        guestList: document.getElementById('rre_guestlist').value.trim(),
+      }
+    });
+    closeModal();
+    if(typeof audit === 'function') audit('Edited rental request ' + id);
+  });
 }
 
 function adjustRRStaff(id, role, delta) {
